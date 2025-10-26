@@ -1,42 +1,44 @@
-# Knowledge Base
+# Knowledge Base Directory
 
-This directory contains files that are automatically indexed by the MCP Crypto Server's knowledge base module. You can add various file types here and they will be automatically parsed and made searchable.
+This directory is for your personal research files and documents that will be indexed and made searchable by the MCP Crypto Server.
 
 ## Supported File Types
 
-- **CSV files** (.csv): Parsed row by row with column headers
-- **Text files** (.txt, .md, .log): Split into paragraphs for chunking
-- **JSON files** (.json, .jsonl): Parsed into structured chunks
+- **Text files**: `.txt`, `.md`
+- **Data files**: `.csv`, `.json`
+- **Documents**: `.pdf`
+- **Web content**: URLs (add as `.txt` files)
 
-## How to Use
+## Features
 
-1. Add files to this directory
-2. The knowledge base will automatically detect and index them
-3. Use the MCP tools to search through the content:
-   - `knowledge_search` - Search for specific terms or concepts
-   - `knowledge_list_files` - List all indexed files
-   - `knowledge_get_file` - Get detailed info about a specific file
-   - `knowledge_stats` - Get statistics about the knowledge base
+- 🔍 Semantic search across all documents
+- 🏷️ Automatic categorization and tagging
+- 🔗 Cross-reference detection
+- 📈 Content-based recommendations
+
+## Usage
+
+1. Add your research files to this directory
+2. The server will automatically index them
+3. Use semantic search to find relevant information
+4. Query your knowledge base through the MCP interface
+
+## Security
+
+- Keep sensitive documents secure
+- Don't add files with personal credentials
+- The knowledge base is local to your installation
 
 ## Examples
 
-The knowledge base comes with example files:
-- `crypto_terms.csv` - Cryptocurrency terminology and definitions
-- `trading_strategies.txt` - Common trading strategies and techniques
-- `market_data.json` - Market data for exchanges and protocols
-
-## Search Tips
-
-- Use natural language queries: "What is DeFi?" or "trading strategies for volatile markets"
-- Search by file type: filter results by .csv, .txt, or .json files
-- The search uses PostgreSQL full-text search for accurate results
-- Results include context and matching snippets for easy reference
-
-## File Watching
-
-The knowledge base automatically watches this directory for changes:
-- New files are indexed immediately
-- Modified files are re-indexed
-- Deleted files are removed from the index
-
-No manual intervention is required - just add your files and start searching!
+```
+knowledge/
+├── trading-strategies/
+│   ├── defi-yield-farming.md
+│   └── options-strategies.pdf
+├── market-analysis/
+│   ├── btc-analysis-2024.txt
+│   └── eth-staking-research.csv
+└── news-sources/
+    └── trusted-sources.json
+```

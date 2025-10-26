@@ -492,6 +492,10 @@ EOF
         echo "  3. Start the server: ./start-all.sh or npm start"
     fi
     echo
+    echo -e "${PURPLE}🌟 JOIN THE COMMUNITY:${NC}"
+    echo -e "${CYAN}📱 Telegram: https://t.me/+f6szsd7zYqdlZDIy${NC}"
+    echo "   Get help, share tips, and connect with other Miss Understood users!"
+    echo
     echo -e "${CYAN}🚀 AVAILABLE COMMANDS:${NC}"
     echo "  npm start          - Start MCP server only"
     echo "  npm run backend    - Start backend server only"

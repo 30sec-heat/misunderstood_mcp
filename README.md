@@ -7,6 +7,8 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+**[📱 Join Community](https://t.me/+f6szsd7zYqdlZDIy)** | Get help, share tips, and connect with other Miss Understood users!
+
 This is an MCP server tailored to crypto use - completely free and open source. We're gonna dominate the crypto AI universe by delivering the elite MCP server for all, and not gate intelligence behind a 40k token stake paywall.
 
 **TLDR:** Run the backend, npm install, create the db with the script and you're good to go.
@@ -22,8 +24,8 @@ The `install.sh` script automatically:
 - Initializes the knowledge base with semantic search
 - Sets up MCP client configurations
 
-    chmod +x install.sh
-    ./install.sh
+chmod +x install.sh
+./install.sh
 
 ### MCP Client Setup
 
@@ -79,7 +81,7 @@ Drop files in `knowledge/` folder for instant semantic search across your resear
 
 Just need to run the backend - the AI modules will boot the MCP automatically when connected:
 
-    ./start-all.sh
+./start-all.sh
 
 **Check Connection:** In Cursor, go to settings and check MCP parameters to verify connection status.
 
