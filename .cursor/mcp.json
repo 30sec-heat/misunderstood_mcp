@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mcp-crypto-server": {
+      "command": "npm",
+      "args": ["run", "mcp-socket"],
+      "cwd": "/home/MCPCrypto"
+    }
+  }
+}

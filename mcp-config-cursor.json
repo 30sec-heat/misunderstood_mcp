@@ -1,0 +1,32 @@
+{
+  "//": "MCP Configuration for Cursor IDE",
+  "//": "========================================",
+  "//": "",
+  "//": "SETUP INSTRUCTIONS FOR CURSOR:",
+  "//": "1. Copy this file to your Cursor settings directory:",
+  "//": "   - Windows: %APPDATA%\\Cursor\\User\\globalStorage\\rooveterinaryinc.roo-cline\\settings\\cline_mcp_settings.json",
+  "//": "   - macOS: ~/Library/Application Support/Cursor/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json",
+  "//": "   - Linux: ~/.config/Cursor/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json",
+  "//": "",
+  "//": "2. Update the 'command' path below to match your project location",
+  "//": "3. Ensure the MCP Crypto Server is installed and configured (run ./install.sh)",
+  "//": "4. Restart Cursor IDE",
+  "//": "5. The MCP tools will be available in Cline/Claude conversations",
+  "//": "",
+  "//": "SECURITY NOTE:",
+  "//": "- Ensure your .env file is properly configured with database credentials",
+  "//": "- Never commit this config file with real paths to version control",
+  "//": "- The server runs locally and doesn't send data to external services",
+  "//": "",
+
+  "mcpServers": {
+    "mcp-crypto-server": {
+      "command": "node",
+      "args": ["/path/to/your/MCPCrypto/dist/mcp-server-socket.js"],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "disabled": false
+    }
+  }
+}
