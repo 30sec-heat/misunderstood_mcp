@@ -22,6 +22,7 @@ POSTGRES_USER="postgres"
 POSTGRES_PASSWORD="postgres"
 TELEGRAM_SETUP="false"
 SKIP_TELEGRAM="false"
+CLEAN_INSTALL="false"
 
 # Logging functions
 log_info() {
@@ -214,9 +215,6 @@ install_dependencies() {
 create_environment_config() {
     log_step "Creating secure environment configuration..."
     
-    # Generate secure API key for MCP server
-    MCP_API_KEY=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p -c 32)
-    
     # Create .env file with secure configuration
     cat > .env << EOF
 # MCP Crypto Server Environment Configuration
@@ -234,9 +232,6 @@ POSTGRES_PORT=$POSTGRES_PORT
 POSTGRES_DATABASE=$POSTGRES_DATABASE
 POSTGRES_USER=$POSTGRES_USER
 POSTGRES_PASSWORD=$POSTGRES_PASSWORD
-
-# MCP Server Security
-MCP_API_KEY=$MCP_API_KEY
 
 # Telegram Configuration (Optional)
 # Note: Session is stored in .session file, not environment variables
@@ -282,7 +277,6 @@ EOF
     chmod 600 .env
     
     log_success "Environment configuration created with secure permissions"
-    log_security "Generated secure MCP API key"
 }
 
 # Setup database schema
@@ -292,9 +286,28 @@ setup_database_schema() {
     # Load environment variables
     export POSTGRES_HOST POSTGRES_PORT POSTGRES_DATABASE POSTGRES_USER POSTGRES_PASSWORD
     
+    # Check if clean install is requested
+    if [[ "$CLEAN_INSTALL" == "true" ]]; then
+        log_warning "Clean installation requested - resetting database..."
+        npm run reset-db
+    fi
+    
     # Run database setup scripts
     log_info "Creating main database..."
     npm run setup-db
+    
+    # Check if tables already exist (unless clean install)
+    if [[ "$CLEAN_INSTALL" != "true" ]]; then
+        # Check if any module tables exist
+        EXISTING_TABLES=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DATABASE" -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE '%_messages' OR table_name LIKE '%_markets' OR table_name LIKE 'knowledge_%';" 2>/dev/null | tr -d ' ')
+        
+        if [[ "$EXISTING_TABLES" -gt 0 ]]; then
+            log_info "Database tables already exist, skipping module initialization"
+            log_info "Use --clean flag to reset and recreate all tables"
+            log_success "Database setup completed (existing tables preserved)"
+            return
+        fi
+    fi
     
     # Initialize all module schemas by running backend briefly
     log_info "Initializing module schemas and tables..."
@@ -514,6 +527,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_TELEGRAM="true"
             shift
             ;;
+        --clean)
+            CLEAN_INSTALL="true"
+            shift
+            ;;
         --help|-h)
             echo "MCP Crypto Server Installation Script"
             echo
@@ -521,6 +538,7 @@ while [[ $# -gt 0 ]]; do
             echo
             echo "Options:"
             echo "  --skip-telegram    Skip Telegram authentication setup"
+            echo "  --clean            Clean installation (reset database and recreate all tables)"
             echo "  --help, -h         Show this help message"
             echo
             exit 0
