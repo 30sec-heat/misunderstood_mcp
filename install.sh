@@ -509,7 +509,6 @@ EOF
     if [[ "$TELEGRAM_SETUP" == "true" ]]; then
         echo "  • Your Telegram session is stored in .session file - keep it secure"
     fi
-    echo "  • Generated MCP API key: ${MCP_API_KEY:0:8}..."
     echo
     echo -e "${CYAN}📚 For more information, see the README.md file${NC}"
     echo
