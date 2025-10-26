@@ -26,7 +26,7 @@ async function setupDatabase() {
     console.log(' Connected to PostgreSQL');
     
     // Create database if it doesn't exist
-    const dbName = process.env.POSTGRES_DATABASE || 'crypto_data';
+    const dbName = process.env.POSTGRES_DATABASE || 'mcp_crypto';
     const result = await client.query(
       `SELECT 1 FROM pg_database WHERE datname = $1`,
       [dbName]

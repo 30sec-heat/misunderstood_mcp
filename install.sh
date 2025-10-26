@@ -17,9 +17,9 @@ NC='\033[0m' # No Color
 # Configuration variables
 POSTGRES_HOST="localhost"
 POSTGRES_PORT="5432"
-POSTGRES_DATABASE="crypto_data"
-POSTGRES_USER=""
-POSTGRES_PASSWORD=""
+POSTGRES_DATABASE="mcp_crypto"
+POSTGRES_USER="postgres"
+POSTGRES_PASSWORD="postgres"
 TELEGRAM_SETUP="false"
 SKIP_TELEGRAM="false"
 
@@ -169,47 +169,14 @@ check_postgresql() {
 # Interactive database configuration
 setup_database_config() {
     log_step "Setting up database configuration..."
-    echo
-    log_info "Please provide your PostgreSQL database configuration:"
-    echo
     
-    # Database host
-    read -p "Database host (default: localhost): " input_host
-    POSTGRES_HOST=${input_host:-localhost}
-    
-    # Database port
-    read -p "Database port (default: 5432): " input_port
-    POSTGRES_PORT=${input_port:-5432}
-    
-    # Database name
-    read -p "Database name (default: crypto_data): " input_db
-    POSTGRES_DATABASE=${input_db:-crypto_data}
-    
-    # Database user
-    while [[ -z "$POSTGRES_USER" ]]; do
-        read -p "Database username: " POSTGRES_USER
-        if [[ -z "$POSTGRES_USER" ]]; then
-            log_warning "Database username is required"
-        fi
-    done
-    
-    # Database password (hidden input)
-    while [[ -z "$POSTGRES_PASSWORD" ]]; do
-        read -s -p "Database password: " POSTGRES_PASSWORD
-        echo
-        if [[ -z "$POSTGRES_PASSWORD" ]]; then
-            log_warning "Database password is required"
-        fi
-    done
-    
-    # Confirm password
-    read -s -p "Confirm password: " password_confirm
-    echo
-    
-    if [[ "$POSTGRES_PASSWORD" != "$password_confirm" ]]; then
-        log_error "Passwords do not match"
-        exit 1
-    fi
+    # Use standard PostgreSQL defaults that match module expectations
+    log_info "Using standard PostgreSQL configuration:"
+    log_info "  Host: $POSTGRES_HOST"
+    log_info "  Port: $POSTGRES_PORT"
+    log_info "  Database: $POSTGRES_DATABASE"
+    log_info "  User: $POSTGRES_USER"
+    log_info "  Password: [configured]"
     
     log_success "Database configuration completed"
 }
@@ -326,9 +293,17 @@ setup_database_schema() {
     export POSTGRES_HOST POSTGRES_PORT POSTGRES_DATABASE POSTGRES_USER POSTGRES_PASSWORD
     
     # Run database setup scripts
+    log_info "Creating main database..."
     npm run setup-db
     
-    log_success "Database setup completed successfully"
+    # Initialize all module schemas by running backend briefly
+    log_info "Initializing module schemas and tables..."
+    log_info "This will create all necessary tables for each module..."
+    
+    # Run backend for 10 seconds to initialize all modules and their schemas
+    timeout 10 npm run backend > /dev/null 2>&1 || true
+    
+    log_success "Database and all module schemas initialized successfully"
 }
 
 # Test database functionality

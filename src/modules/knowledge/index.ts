@@ -74,11 +74,11 @@ export class KnowledgeModule extends BaseCryptoModule {
     // Register database
     this.postgresManager.registerDatabase({
       name: 'knowledge',
-      host: process.env.POSTGRES_HOST,
+      host: process.env.POSTGRES_HOST || 'localhost',
       port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DATABASE,
-      user: process.env.POSTGRES_USER,
-      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DATABASE || 'mcp_crypto',
+      user: process.env.POSTGRES_USER || 'postgres',
+      password: process.env.POSTGRES_PASSWORD || 'postgres',
       ssl: false
     });
 
