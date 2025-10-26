@@ -1,4 +1,4 @@
-import * as WebSocket from 'ws';
+import WebSocket from 'ws';
 import { LiquidationPostgresDatabase, LiquidationRecord, OpenInterestRecord } from './postgres-database.js';
 
 export interface BinanceLiquidationEvent {
@@ -60,7 +60,7 @@ export class BinanceWebSocketListener {
 
   async connect(): Promise<void> {
     try {
-      this.ws = new (WebSocket as any)('wss://fstream.binance.com/ws/!forceOrder@arr');
+      this.ws = new WebSocket('wss://fstream.binance.com/ws/!forceOrder@arr');
       
       this.ws!.on('open', () => {
         console.log('Binance liquidation WebSocket connected');
@@ -160,7 +160,7 @@ export class BinanceWebSocketListener {
 
   async connectOpenInterest(): Promise<void> {
     try {
-      const openInterestWs = new (WebSocket as any)('wss://fstream.binance.com/ws/!openInterest@arr');
+      const openInterestWs = new WebSocket('wss://fstream.binance.com/ws/!openInterest@arr');
       
       openInterestWs.on('open', () => {
         console.log('Binance open interest WebSocket connected');

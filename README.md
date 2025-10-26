@@ -1,44 +1,29 @@
 # MCP Crypto Server
 
-> Meet **Miss Understood** - the smartest  redhead in your area
+> Meet **Miss Understood** - the elite MCP server for crypto intelligence
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Stop Drowning in Data Noise. Start Getting Intelligence That Actually Matters.
+This is an MCP server tailored to crypto use - completely free and open source. We're gonna dominate the crypto AI universe by delivering the elite MCP server for all, and not gate intelligence behind a 40k token stake paywall.
 
-Every crypto trader, researcher, and enthusiast faces the same problem: **information overload**. You're bombarded with thousands of tweets, Telegram messages, Reddit posts, news articles, and market data points every day. Most of it is noise. Some of it is gold. But finding the gold is like searching for a needle in a haystack.
-
-**What if your AI assistant could cut through the noise and deliver only the intelligence YOU need, curated by YOU, for YOU?**
-
-### **Fully Malleable to Your Needs**
-Unlike generic crypto data feeds that spam you with everything, this server adapts to **your specific interests**. Want to track only DeFi governance discussions? Done. Only interested in Bitcoin options flow? Configured. Need to monitor specific Telegram channels for alpha? Set it up once, get curated intelligence forever.
-
-### **Your Personal Knowledge Base**
-Drop your research files, trading strategies, market analysis, or any documents into the knowledge folder. The server automatically indexes everything with semantic search, making your personal research instantly searchable and accessible to your AI assistant. Your years of accumulated knowledge become a searchable, intelligent database.
-
-### **Curated Social Intelligence**
-Instead of manually checking 15 Telegram channels, 8 Reddit communities, 3 news sites, and multiple DeFi protocols every morning, your AI instantly delivers:
-- **Relevant discussions from YOUR universe** - your Telegram account is your universe
-- **Reddit posts from YOUR selected subreddits**  
-- **News articles from YOUR trusted sources**
-- **Sentiment analysis and price analytics** to deliver technicals and intelligence to the best LLMs
-- **Key insights from YOUR personal research files** by RAG retrieval - found a txt file with tokenomics? Add it to knowledge folder and never forget
-
-**You control the data sources. You set the filters. You curate the intelligence.**
-
-Your AI assistant becomes truly **yours** - powered by data you trust, filtered by criteria you set, enhanced by knowledge you've accumulated.
+**TLDR:** Run the backend, npm install, create the db with the script and you're good to go.
 
 ## Quick Start
 
 ### Installation
 
-```bash
-chmod +x install.sh
-./install.sh
-```
+The `install.sh` script automatically:
+- Installs Node.js dependencies
+- Sets up PostgreSQL database and creates required tables
+- Configures environment variables
+- Initializes the knowledge base with semantic search
+- Sets up MCP client configurations
+
+    chmod +x install.sh
+    ./install.sh
 
 ### MCP Client Setup
 
@@ -53,35 +38,50 @@ After installation, connect to your preferred AI client:
 
 ### Requirements & Setup
 
-**Required:** Node.js 18+, PostgreSQL 12+, 4GB+ RAM, 10GB+ disk space
+**Required:** Node.js 18+, PostgreSQL 12+, 2GB+ RAM, 2GB+ disk space
 
-**Recommended:** Cursor with Remote SSH + Amazon EC2 free tier or run locally with 24/7 backend for continuous intelligence gathering.
+**Recommended:** Run locally and let backend run continuously for real-time intelligence gathering.
 
 **Optional:** Telegram account for social intelligence features
 
 ## Core Capabilities
 
-**Market Intelligence:** Real-time prices, DeFi yields, options flow, liquidations, technical analysis, arbitrage detection
+### **Market Intelligence**
+- **Aave**: Lending rates, collateral analysis, yield opportunities, risk assessment
+- **DeFiLlama**: Protocol TVL, yield farming pools, DEX analytics, chain comparisons
+- **Deribit**: Options flow, volatility analysis, Greeks calculations, risk metrics
+- **DexScreener**: Token analysis, pair discovery, liquidity tracking, new token alerts
+- **Liquidations**: Real-time liquidation tracking, risk analysis, market impact assessment
 
-**Social Intelligence:** Semantic search across platforms, sentiment analysis, news aggregation, trend detection, alpha discovery  
+### **Social Intelligence**
+- **Telegram**: Monitor channels, sentiment analysis, alpha discovery, trend detection
+- **Reddit**: Subreddit monitoring, discussion analysis, community sentiment
+- **News**: RSS feeds, TradFi news, crypto news aggregation, semantic search
+- **Sentiment**: Cross-platform sentiment analysis, semantic search, trend correlation
 
-**AI Analysis:** ML forecasting, risk assessment, correlation detection, automated research synthesis
+### **Technical Analysis**
+- **Chart Analysis**: Technical indicators, pattern recognition, multi-timeframe analysis
+- **Forecasting**: ML-powered price predictions, volatility forecasting, risk modeling
+- **Performance**: Portfolio tracking, performance analytics, risk metrics
 
-**Knowledge Base:** Drop files in `knowledge/` folder for instant semantic search across your research, strategies, and analysis
+### **Knowledge Base**
+Drop files in `knowledge/` folder for instant semantic search across your research, strategies, and analysis
 
 ## Project Structure
 
-```
-├── install.sh              # One-command installation
-├── mcp-config-*.json      # MCP client configurations  
-├── knowledge/             # Your research files (auto-indexed)
-├── src/modules/           # Core modules: aave, deribit, sentiment, telegram, etc.
-└── test/                  # Tests and utilities
-```
+- `install.sh` - One-command installation
+- `mcp-config-*.json` - MCP client configurations  
+- `knowledge/` - Your research files (auto-indexed)
+- `src/modules/` - Core modules: aave, deribit, sentiment, telegram, etc.
+- `test/` - Tests and utilities
 
 ## Usage
 
-**Start:** `./start-all.sh` (MCP server auto-starts with AI clients)
+Just need to run the backend - the AI modules will boot the MCP automatically when connected:
+
+    ./start-all.sh
+
+**Check Connection:** In Cursor, go to settings and check MCP parameters to verify connection status.
 
 **Example Queries:**
 - *"What's the sentiment around Ethereum staking this week from my monitored channels?"*
@@ -104,11 +104,6 @@ After installation, connect to your preferred AI client:
 
 **Auto-indexed:** Drop files → instant semantic search across all your research
 
-## Development
-
-**Scripts:** `npm run backend`, `npm run build`, `npm run test-all`
-
-**Testing:** `npm run test-connection`, `npm run test-knowledge`, or test specific modules
 
 ## Troubleshooting
 
