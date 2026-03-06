@@ -1,15 +1,18 @@
 import { BaseCryptoModule, ToolDefinition } from '../base/module.js';
 import { TelegramModule } from '../telegram/index.js';
 import { RedditModule } from '../reddit/index.js';
+import { NewsModule } from '../news/index.js';
 import { TelegramPostgresDatabase } from '../telegram/postgres-database.js';
 import { RedditPostgresDatabase } from '../reddit/postgres-database.js';
 import { SemanticSentimentEngine, SemanticSearchQuery, SemanticMessage } from './semantic-engine.js';
+import { getSymbolAliases } from './symbol-mapping.js';
 import { Pool } from 'pg';
 
 export class SentimentModule extends BaseCryptoModule {
   name = 'sentiment';
   private telegramModule: TelegramModule | null = null;
   private redditModule: RedditModule | null = null;
+  private newsModule: NewsModule | null = null;
   private telegramDatabase: TelegramPostgresDatabase | null = null;
   private redditDatabase: RedditPostgresDatabase | null = null;
   private telegramPool: Pool | null = null;
@@ -240,6 +243,101 @@ export class SentimentModule extends BaseCryptoModule {
       handler: this.advancedSearch.bind(this)
     });
 
+    // Sentiment expansion tools
+    this.addTool({
+      name: 'sentiment_get_health',
+      description: 'Returns availability status of Telegram, Reddit, and semantic engine data sources',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        required: []
+      },
+      handler: this.getHealth.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_get_symbol_sentiment',
+      description: 'Get symbol-specific sentiment (BTC, ETH, SOL, etc.) using keyword/semantic search for ticker mentions',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string', description: 'Ticker symbol (e.g. BTC, ETH, SOL)' },
+          time_range: { type: 'string', enum: ['1h', '4h', '24h', '7d'], default: '24h' },
+          limit: { type: 'number', description: 'Max results to analyze', default: 100 }
+        },
+        required: ['symbol']
+      },
+      handler: this.getSymbolSentiment.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_get_time_windowed',
+      description: 'Return sentiment aggregated for 1h, 4h, 24h, 7d time windows',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'Topic or keyword to analyze', default: 'crypto' },
+          limit: { type: 'number', default: 200 }
+        }
+      },
+      handler: this.getTimeWindowed.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_get_unified_score',
+      description: 'Aggregate sentiment from Telegram + Reddit (News optional). Weighted avg, normalized to [-1, 1]',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          time_range: { type: 'string', enum: ['1h', '4h', '24h', '7d'], default: '24h' },
+          include_news: { type: 'boolean', default: true },
+          limit: { type: 'number', default: 500 }
+        }
+      },
+      handler: this.getUnifiedScore.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_detect_extremes',
+      description: 'Detect fear/greed spikes (score > 0.8 or < -0.8). Return extreme_events with timestamp, score, direction',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          time_range: { type: 'string', enum: ['1h', '4h', '24h', '7d'], default: '24h' },
+          threshold: { type: 'number', description: 'Absolute score threshold', default: 0.8 }
+        }
+      },
+      handler: this.detectExtremes.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_query_by_topic',
+      description: 'Topic/keyword semantic search with optional sentiment filter',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'Topic or keyword to search' },
+          sentiment_filter: { type: 'string', enum: ['bullish', 'bearish', 'neutral'] },
+          time_range: { type: 'string', enum: ['1h', '4h', '24h', '7d'], default: '24h' },
+          limit: { type: 'number', default: 50 }
+        },
+        required: ['topic']
+      },
+      handler: this.queryByTopic.bind(this)
+    });
+
+    this.addTool({
+      name: 'sentiment_get_historical',
+      description: 'Historical sentiment snapshots (coming soon - no DB migration yet)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string' },
+          days: { type: 'number', default: 7 }
+        }
+      },
+      handler: this.getHistorical.bind(this)
+    });
   }
 
   async initialize(): Promise<void> {
@@ -290,6 +388,19 @@ export class SentimentModule extends BaseCryptoModule {
 
   setRedditModule(redditModule: RedditModule): void {
     this.redditModule = redditModule;
+  }
+
+  setNewsModule(newsModule: NewsModule | null): void {
+    this.newsModule = newsModule;
+  }
+
+  /** Get availability of all sentiment data sources. Used for error handling. */
+  private getAvailability(): { telegram: boolean; reddit: boolean; semantic_engine: boolean } {
+    return {
+      telegram: !!this.telegramPool,
+      reddit: !!this.redditPool,
+      semantic_engine: !!this.semanticEngine && !!this.telegramPool
+    };
   }
 
   // Method to check module dependencies status
@@ -1143,12 +1254,496 @@ export class SentimentModule extends BaseCryptoModule {
   private parseTimeRangeToHours(timeRange: string): number {
     const timeMap: { [key: string]: number } = {
       '1h': 1,
+      '4h': 4,
       '6h': 6,
       '24h': 24,
       '7d': 168,
       '30d': 720
     };
     return timeMap[timeRange] || 24;
+  }
+
+  // ---- Sentiment expansion handlers ----
+
+  private async getHealth(): Promise<any> {
+    const availability = this.getAvailability();
+    return {
+      success: true,
+      availability: {
+        telegram: availability.telegram,
+        reddit: availability.reddit,
+        semantic_engine: availability.semantic_engine
+      },
+      message: 'Health check complete'
+    };
+  }
+
+  private async getSymbolSentiment(args: any): Promise<any> {
+    const availability = this.getAvailability();
+    const symbol = (args.symbol || '').toString().trim().toUpperCase();
+    if (!symbol) {
+      return {
+        success: false,
+        error: 'INVALID_SYMBOL',
+        availability,
+        message: 'Symbol is required'
+      };
+    }
+
+    if (!availability.telegram && !availability.reddit) {
+      return {
+        success: false,
+        error: 'TELEGRAM_DB_UNAVAILABLE',
+        availability,
+        message: 'No sentiment data sources available (Telegram and Reddit DBs unavailable)'
+      };
+    }
+
+    const timeRange = args.time_range || '24h';
+    const limit = Math.min(Math.max(parseInt(args.limit) || 100, 1), 500);
+    const aliases = getSymbolAliases(symbol);
+
+    try {
+      const perSource: Record<string, { score: number; mention_count: number; samples: number }> = {};
+      let totalScore = 0;
+      let totalWeight = 0;
+
+      if (this.semanticEngine && availability.telegram) {
+        await this.processRecentMessagesForSemantics(timeRange);
+        const kwResult = await this.semanticEngine.searchByKeywords(aliases, {
+          time_range: timeRange,
+          sources: ['telegram', 'reddit'],
+          limit,
+          match_mode: 'any'
+        });
+        const messages = kwResult.messages;
+        const tg = messages.filter(m => m.source === 'telegram');
+        const rd = messages.filter(m => m.source === 'reddit');
+        if (tg.length > 0) {
+          const tgScore = tg.reduce((s, m) => s + (m.sentiment_score || 0), 0) / tg.length;
+          perSource.telegram = { score: tgScore, mention_count: tg.length, samples: tg.length };
+          totalScore += tgScore * Math.min(tg.length, 10);
+          totalWeight += Math.min(tg.length, 10);
+        }
+        if (rd.length > 0) {
+          const rdScore = rd.reduce((s, m) => s + (m.sentiment_score || 0), 0) / rd.length;
+          perSource.reddit = { score: rdScore, mention_count: rd.length, samples: rd.length };
+          totalScore += rdScore * Math.min(rd.length, 10);
+          totalWeight += Math.min(rd.length, 10);
+        }
+      } else {
+        if (availability.telegram && this.telegramPool) {
+          const tgMsgs: any[] = [];
+          for (const kw of aliases.slice(0, 3)) {
+            const rows = await this.searchTelegramMessages(kw, Math.ceil(limit / aliases.length));
+            tgMsgs.push(...rows);
+          }
+          const unique = Array.from(new Map(tgMsgs.map(m => [m.id, m])).values());
+          const scores = unique.map(m => this.lexiconScore(m.text || ''));
+          const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+          perSource.telegram = { score: avgScore, mention_count: unique.length, samples: unique.length };
+          if (unique.length > 0) {
+            totalScore += avgScore * Math.min(unique.length, 10);
+            totalWeight += Math.min(unique.length, 10);
+          }
+        }
+        if (availability.reddit && this.redditPool) {
+          const rdMsgs: any[] = [];
+          for (const kw of aliases.slice(0, 3)) {
+            const posts = await this.searchRedditPosts(kw, Math.ceil(limit / 2));
+            const comments = await this.searchRedditComments(kw, Math.ceil(limit / 2));
+            rdMsgs.push(...posts.map(p => ({ ...p, text: (p.title || '') + ' ' + (p.content || '') })));
+            rdMsgs.push(...comments.map(c => ({ ...c, text: c.content || c.text || '' })));
+          }
+          const unique = Array.from(new Map(rdMsgs.map(m => [m.id, m])).values());
+          const scores = unique.map(m => this.lexiconScore(m.text || ''));
+          const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+          perSource.reddit = { score: avgScore, mention_count: unique.length, samples: unique.length };
+          if (unique.length > 0) {
+            totalScore += avgScore * Math.min(unique.length, 10);
+            totalWeight += Math.min(unique.length, 10);
+          }
+        }
+      }
+
+      const score = totalWeight > 0 ? totalScore / totalWeight : 0;
+      const normalized = Math.max(-1, Math.min(1, score));
+
+      return {
+        success: true,
+        symbol,
+        score: Math.round(normalized * 1000) / 1000,
+        per_source: perSource,
+        mention_count: Object.values(perSource).reduce((s, p) => s + p.mention_count, 0),
+        time_range: timeRange
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'FETCH_FAILED',
+        availability,
+        message: String(err)
+      };
+    }
+  }
+
+  private lexiconScore(text: string): number {
+    const bullish = ['moon', 'bullish', 'pump', 'buy', 'hodl', 'accumulate', 'rocket', 'lambo', 'wagmi'];
+    const bearish = ['dump', 'bearish', 'crash', 'sell', 'rekt', 'fud', 'scam', 'rug', 'capitulation'];
+    const t = text.toLowerCase();
+    let s = 0;
+    bullish.forEach(w => { if (t.includes(w)) s += 0.4; });
+    bearish.forEach(w => { if (t.includes(w)) s -= 0.4; });
+    return Math.max(-1, Math.min(1, s));
+  }
+
+  private async getTimeWindowed(args: any): Promise<any> {
+    const availability = this.getAvailability();
+    if (!availability.telegram && !availability.reddit) {
+      return {
+        success: false,
+        error: 'TELEGRAM_DB_UNAVAILABLE',
+        availability,
+        windows: {}
+      };
+    }
+
+    const topic = (args.topic || 'crypto').toString();
+    const limit = Math.min(Math.max(parseInt(args.limit) || 200, 1), 500);
+    const windows = ['1h', '4h', '24h', '7d'] as const;
+
+    try {
+      const results: Record<string, { score: number; sample_count: number }> = {};
+      for (const w of windows) {
+        const data = await this.fetchSentimentForTopic(topic, w, limit);
+        results[w] = { score: data.score, sample_count: data.count };
+      }
+      return {
+        success: true,
+        topic,
+        windows: results,
+        availability
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'FETCH_FAILED',
+        availability,
+        message: String(err)
+      };
+    }
+  }
+
+  private async fetchSentimentForTopic(topic: string, timeRange: string, limit: number): Promise<{ score: number; count: number }> {
+    if (this.semanticEngine && this.telegramPool) {
+      await this.processRecentMessagesForSemantics(timeRange);
+      const results = await this.semanticEngine.semanticSearch({
+        query: topic,
+        time_range: timeRange,
+        sources: ['telegram', 'reddit'],
+        limit
+      });
+      const count = results.length;
+      const score = count > 0
+        ? results.reduce((s, m) => s + (m.semantic_score || 0), 0) / count
+        : 0;
+      return { score: Math.max(-1, Math.min(1, score)), count };
+    }
+
+    const all: Array<{ score: number }> = [];
+    if (this.telegramPool) {
+      const rows = await this.searchTelegramMessages(topic, limit);
+      rows.forEach(r => all.push({ score: this.lexiconScore(r.text || '') }));
+    }
+    if (this.redditPool) {
+      const posts = await this.searchRedditPosts(topic, Math.ceil(limit / 2));
+      const comments = await this.searchRedditComments(topic, Math.ceil(limit / 2));
+      posts.forEach(p => all.push({ score: this.lexiconScore((p.title || '') + ' ' + (p.content || '')) }));
+      comments.forEach(c => all.push({ score: this.lexiconScore(c.content || c.text || '') }));
+    }
+    const count = all.length;
+    const score = count > 0 ? all.reduce((s, m) => s + m.score, 0) / count : 0;
+    return { score: Math.max(-1, Math.min(1, score)), count };
+  }
+
+  private async getUnifiedScore(args: any): Promise<any> {
+    const availability = this.getAvailability();
+    if (!availability.telegram && !availability.reddit) {
+      return {
+        success: false,
+        error: 'TELEGRAM_DB_UNAVAILABLE',
+        availability,
+        unified_score: 0,
+        per_source_scores: {},
+        sample_count: 0
+      };
+    }
+
+    const timeRange = args.time_range || '24h';
+    const includeNews = args.include_news !== false;
+    const limit = Math.min(Math.max(parseInt(args.limit) || 500, 1), 1000);
+
+    try {
+      const perSourceScores: Record<string, { score: number; count: number; weight: number }> = {};
+      const weights = { telegram: 0.4, reddit: 0.4, news: 0.2 };
+
+      if (availability.telegram && this.telegramPool) {
+        const msgs = await this.getRecentTelegramMessages(Math.ceil(limit * 0.5));
+        const scores = msgs.map(m => this.lexiconScore(m.text || ''));
+        const count = scores.length;
+        const avg = count > 0 ? scores.reduce((a, b) => a + b, 0) / count : 0;
+        perSourceScores.telegram = { score: avg, count, weight: weights.telegram };
+      }
+
+      if (availability.reddit && this.redditPool) {
+        const posts = await this.getRecentRedditPosts(Math.ceil(limit * 0.5));
+        const scores = posts.map(p => this.lexiconScore((p.title || '') + ' ' + (p.content || '')));
+        const count = scores.length;
+        const avg = count > 0 ? scores.reduce((a, b) => a + b, 0) / count : 0;
+        perSourceScores.reddit = { score: avg, count, weight: weights.reddit };
+      }
+
+      if (includeNews && this.newsModule) {
+        try {
+          const newsResult = await this.newsModule.executeTool('news_search', {
+            query: 'crypto market',
+            timeRange,
+            limit: 30
+          });
+          const articles = (newsResult as any).results || [];
+          const scores = articles.map((a: any) => this.lexiconScore((a.title || '') + ' ' + (a.description || '')));
+          const count = scores.length;
+          const avg = count > 0 ? scores.reduce((a: number, b: number) => a + b, 0) / count : 0;
+          perSourceScores.news = { score: avg, count, weight: weights.news };
+        } catch {
+          perSourceScores.news = { score: 0, count: 0, weight: 0 };
+        }
+      }
+
+      let weightedSum = 0;
+      let totalWeight = 0;
+      for (const [k, v] of Object.entries(perSourceScores)) {
+        if (v.count > 0 && v.weight > 0) {
+          weightedSum += v.score * v.weight;
+          totalWeight += v.weight;
+        }
+      }
+      const unifiedScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+      const normalized = Math.max(-1, Math.min(1, unifiedScore));
+      const sampleCount = Object.values(perSourceScores).reduce((s, v) => s + v.count, 0);
+
+      return {
+        success: true,
+        unified_score: Math.round(normalized * 1000) / 1000,
+        per_source_scores: Object.fromEntries(
+          Object.entries(perSourceScores).map(([k, v]) => [k, { score: v.score, count: v.count }])
+        ),
+        sample_count: sampleCount,
+        availability
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'FETCH_FAILED',
+        availability,
+        unified_score: 0,
+        per_source_scores: {},
+        sample_count: 0,
+        message: String(err)
+      };
+    }
+  }
+
+  private async detectExtremes(args: any): Promise<any> {
+    const availability = this.getAvailability();
+    if (!availability.telegram && !availability.reddit) {
+      return {
+        success: false,
+        error: 'TELEGRAM_DB_UNAVAILABLE',
+        availability,
+        extreme_events: []
+      };
+    }
+
+    const timeRange = args.time_range || '24h';
+    const threshold = Math.min(1, Math.max(0.1, parseFloat(args.threshold) || 0.8));
+
+    try {
+      const events: Array<{ timestamp: string; score: number; direction: 'fear' | 'greed' }> = [];
+      let messages: Array<{ date: Date; score: number }> = [];
+
+      if (this.semanticEngine && this.telegramPool) {
+        await this.processRecentMessagesForSemantics(timeRange);
+        const results = await this.semanticEngine.semanticSearch({
+          query: 'crypto market sentiment',
+          time_range: timeRange,
+          sources: ['telegram', 'reddit'],
+          limit: 500
+        });
+        messages = results
+          .filter(m => m.semantic_score !== undefined && m.semantic_score !== null)
+          .map(m => ({ date: new Date(m.date), score: m.semantic_score! }));
+      } else {
+        if (this.telegramPool) {
+          const rows = await this.getRecentTelegramMessages(300);
+          messages.push(...rows.map(r => ({
+            date: new Date(r.date),
+            score: this.lexiconScore(r.text || '')
+          })));
+        }
+        if (this.redditPool) {
+          const rows = await this.getRecentRedditPosts(200);
+          messages.push(...rows.map(r => ({
+            date: new Date(r.created_utc ? r.created_utc * 1000 : r.created_at),
+            score: this.lexiconScore((r.title || '') + ' ' + (r.content || ''))
+          })));
+        }
+      }
+
+      for (const m of messages) {
+        if (m.score >= threshold) {
+          events.push({
+            timestamp: m.date.toISOString(),
+            score: m.score,
+            direction: 'greed'
+          });
+        } else if (m.score <= -threshold) {
+          events.push({
+            timestamp: m.date.toISOString(),
+            score: m.score,
+            direction: 'fear'
+          });
+        }
+      }
+
+      events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return {
+        success: true,
+        extreme_events: events.slice(0, 50),
+        threshold,
+        time_range: timeRange,
+        availability
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'FETCH_FAILED',
+        availability,
+        extreme_events: [],
+        message: String(err)
+      };
+    }
+  }
+
+  private async queryByTopic(args: any): Promise<any> {
+    const availability = this.getAvailability();
+    const topic = (args.topic || '').toString().trim();
+    if (!topic) {
+      return {
+        success: false,
+        error: 'INVALID_TOPIC',
+        availability,
+        results: []
+      };
+    }
+
+    if (!availability.telegram && !availability.reddit) {
+      return {
+        success: false,
+        error: 'TELEGRAM_DB_UNAVAILABLE',
+        availability,
+        results: []
+      };
+    }
+
+    const timeRange = args.time_range || '24h';
+    const limit = Math.min(Math.max(parseInt(args.limit) || 50, 1), 200);
+
+    try {
+      if (this.semanticEngine && this.telegramPool) {
+        await this.processRecentMessagesForSemantics(timeRange);
+        const results = await this.semanticEngine.semanticSearch({
+          query: topic,
+          sentiment_filter: args.sentiment_filter,
+          time_range: timeRange,
+          sources: ['telegram', 'reddit'],
+          limit
+        });
+        return {
+          success: true,
+          topic,
+          time_range: timeRange,
+          total_results: results.length,
+          results: results.map(m => ({
+            id: m.id,
+            source: m.source,
+            text: m.text?.substring(0, 300),
+            date: m.date,
+            sentiment_score: m.semantic_score
+          })),
+          availability
+        };
+      }
+
+      const all: any[] = [];
+      if (this.telegramPool) {
+        const rows = await this.searchTelegramMessages(topic, limit);
+        rows.forEach(r => all.push({
+          id: r.id,
+          source: 'telegram',
+          text: (r.text || '').substring(0, 300),
+          date: r.date,
+          sentiment_score: this.lexiconScore(r.text || '')
+        }));
+      }
+      if (this.redditPool) {
+        const posts = await this.searchRedditPosts(topic, Math.ceil(limit / 2));
+        const comments = await this.searchRedditComments(topic, Math.ceil(limit / 2));
+        posts.forEach(p => all.push({
+          id: p.id,
+          source: 'reddit',
+          text: ((p.title || '') + ' ' + (p.content || '')).substring(0, 300),
+          date: new Date(p.created_utc * 1000),
+          sentiment_score: this.lexiconScore((p.title || '') + ' ' + (p.content || ''))
+        }));
+        comments.forEach(c => all.push({
+          id: c.id,
+          source: 'reddit',
+          text: (c.content || c.text || '').substring(0, 300),
+          date: new Date(c.created_utc * 1000),
+          sentiment_score: this.lexiconScore(c.content || c.text || '')
+        }));
+      }
+
+      all.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      return {
+        success: true,
+        topic,
+        time_range: timeRange,
+        total_results: all.length,
+        results: all.slice(0, limit),
+        availability
+      };
+    } catch (err) {
+      return {
+        success: false,
+        error: 'FETCH_FAILED',
+        availability,
+        results: [],
+        message: String(err)
+      };
+    }
+  }
+
+  private async getHistorical(_args: any): Promise<any> {
+    return {
+      success: true,
+      message: 'Coming soon - sentiment_snapshots table not yet implemented',
+      data: [],
+      historical_scores: []
+    };
   }
 
 }

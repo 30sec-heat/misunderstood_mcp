@@ -29,6 +29,9 @@ api_docs/
 *.sqlite
 *.sqlite3
 data/
+# Allow chart module data source
+!src/modules/chart/data/
+!src/modules/chart/data/*
 *.sql
 
 # Test outputs and results
@@ -133,6 +136,7 @@ Thumbs.db
 
 # Project specific
 cursor.deb
+strategies.json
 aave-test-output.txt
 *.test-output.txt
 

@@ -1194,7 +1194,7 @@ export class ComprehensiveAnalysisTool {
       }
 
       const oiHistory = oiHistoryData[0].history;
-      const currentOI = oiHistory[oiHistory.length - 1]?.value || 0;
+      const currentOI = oiHistory[oiHistory.length - 1]?.open_interest || 0;
 
       // Align OI data with price data by timestamp
       const alignedData = this.alignOIWithPriceData(oiHistory, ohlcData);
@@ -1210,7 +1210,7 @@ export class ComprehensiveAnalysisTool {
     
     return {
         currentOI,
-        oiHistory: oiHistory.slice(-100), // Keep last 100 points for display
+        oiHistory: oiHistory.slice(-100).map(p => ({ timestamp: p.timestamp, value: p.open_interest })), // Keep last 100 for display
         oiTrends,
         priceOICorrelation,
         oiChangeAnalysis
@@ -1239,15 +1239,14 @@ export class ComprehensiveAnalysisTool {
     return Math.floor(timeDiff / 1000); // Convert to seconds
   }
 
-  private alignOIWithPriceData(oiHistory: Array<{ timestamp: number; value: number }>, ohlcData: OHLCData[]) {
+  private alignOIWithPriceData(oiHistory: Array<{ timestamp: number; open_interest: number }>, ohlcData: OHLCData[]) {
     const alignedData: Array<{ timestamp: number; price: number; oi: number }> = [];
     
     // Create a map of OI data by timestamp for faster lookup
     const oiMap = new Map<number, number>();
     oiHistory.forEach(point => {
-      // Convert to milliseconds and round to nearest hour for alignment
       const hourTimestamp = Math.floor(point.timestamp * 1000 / (1000 * 60 * 60)) * (1000 * 60 * 60);
-      oiMap.set(hourTimestamp, point.value);
+      oiMap.set(hourTimestamp, point.open_interest);
     });
 
     // Align with price data
@@ -1335,7 +1334,7 @@ export class ComprehensiveAnalysisTool {
     };
   }
 
-  private calculateOIChangeAnalysis(oiHistory: Array<{ timestamp: number; value: number }>) {
+  private calculateOIChangeAnalysis(oiHistory: Array<{ timestamp: number; open_interest: number }>) {
     if (oiHistory.length < 2) {
       return {
         recent24h: { change: 0, changePercent: 0 },
@@ -1343,7 +1342,7 @@ export class ComprehensiveAnalysisTool {
       };
     }
 
-    const currentOI = oiHistory[oiHistory.length - 1].value;
+    const currentOI = oiHistory[oiHistory.length - 1].open_interest;
     const now = Date.now() / 1000;
 
     // Find OI value 24 hours ago
@@ -1366,7 +1365,7 @@ export class ComprehensiveAnalysisTool {
     };
   }
 
-  private findClosestOIValue(oiHistory: Array<{ timestamp: number; value: number }>, targetTimestamp: number): number {
+  private findClosestOIValue(oiHistory: Array<{ timestamp: number; open_interest: number }>, targetTimestamp: number): number {
     if (oiHistory.length === 0) return 0;
 
     let closest = oiHistory[0];
@@ -1380,7 +1379,7 @@ export class ComprehensiveAnalysisTool {
       }
     }
 
-    return closest.value;
+    return closest.open_interest;
   }
 
   private calculateLinearRegression(data: Array<{ timestamp: number; price: number; oi: number }>, field: 'price' | 'oi') {

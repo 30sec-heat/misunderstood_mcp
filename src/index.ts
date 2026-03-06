@@ -31,6 +31,8 @@ import { ForecastingModule } from './modules/forecasting/index.js';
 import { AaveModule } from './modules/aave/index.js';
 import { LiquidationModule } from './modules/liquidations/index.js';
 import { KnowledgeModule } from './modules/knowledge/index.js';
+import { TradingModule } from './modules/trading/index.js';
+import { OrderFlowModule } from './modules/orderflow/index.js';
 // DatabaseManager removed - using PostgreSQL directly
 import { websocketManager } from './modules/base/websocket-manager.js';
 
@@ -88,6 +90,8 @@ class CryptoMCPServer {
       { name: 'aave', class: AaveModule },
       { name: 'liquidations', class: LiquidationModule },
       { name: 'knowledge', class: KnowledgeModule },
+      { name: 'trading', class: TradingModule },
+      { name: 'orderflow', class: OrderFlowModule },
     ];
 
     // Store module classes for lazy loading
@@ -142,7 +146,7 @@ class CryptoMCPServer {
       'telegram', 'polymarket', 'sentiment', 'news', 'reddit',
       'dexscreener', 'aave', 'analysis', 'defillama', 'deribit',
       'chart', 'econ_data', 'performance', 'alpha', 'quote',
-      'forecasting', 'liquidations'
+      'forecasting', 'liquidations', 'trading', 'orderflow'
     ];
     
     // Initializing essential modules
@@ -183,6 +187,10 @@ class CryptoMCPServer {
     
     if (redditModule && sentimentModule && sentimentModule.setRedditModule) {
       sentimentModule.setRedditModule(redditModule);
+    }
+
+    if (newsModule && sentimentModule && sentimentModule.setNewsModule) {
+      sentimentModule.setNewsModule(newsModule);
     }
     
     if (telegramModule && alphaModule && alphaModule.setTelegramModule) {

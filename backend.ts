@@ -21,6 +21,8 @@ import { QuoteModule } from './src/modules/quote/index.js';
 import { AlphaScannerModule } from './src/modules/alpha/index.js';
 import { DeribitModule } from './src/modules/deribit/index.js';
 import { KnowledgeModule } from './src/modules/knowledge/index.js';
+import { TradingModule } from './src/modules/trading/index.js';
+import { OrderFlowModule } from './src/modules/orderflow/index.js';
 
 // Service status interface
 interface ServiceStatus {
@@ -78,6 +80,8 @@ export class CryptoBackend {
         { class: AlphaScannerModule, name: 'alpha' },
         { class: DeribitModule, name: 'deribit' },
         { class: KnowledgeModule, name: 'knowledge' },
+        { class: TradingModule, name: 'trading' },
+        { class: OrderFlowModule, name: 'orderflow' },
       ];
 
       // Initialize basic modules first
