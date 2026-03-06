@@ -253,3 +253,127 @@ export async function getTags(): Promise<GammaTag[]> {
     return handleError(error, []);
   }
 }
+
+export interface SearchMarketResult {
+  id: string;
+  question: string;
+  eventTitle?: string;
+  endDate?: string;
+  volume?: string;
+  odds?: Array<{ outcome: string; price: number; probability: number }>;
+}
+
+interface PublicSearchResponse {
+  events?: GammaEvent[] | null;
+  pagination?: { hasMore?: boolean; totalResults?: number };
+}
+
+/**
+ * Search markets by query using Gamma API public-search.
+ * Falls back to fetching trending events and filtering client-side if search fails.
+ */
+export async function searchMarkets(
+  query: string,
+  limit: number = 10,
+  includeOdds: boolean = true
+): Promise<SearchMarketResult[]> {
+  await rateLimit();
+  const q = query.trim();
+  if (!q) return [];
+
+  try {
+    const response = await axios.get<PublicSearchResponse>(`${GAMMA_BASE_URL}/public-search`, {
+      params: {
+        q,
+        limit_per_type: Math.min(limit * 3, 50),
+        search_tags: false,
+        search_profiles: false,
+        events_status: 'open',
+      },
+    });
+
+    const events = response.data?.events;
+    if (!Array.isArray(events) || events.length === 0) {
+      return searchMarketsFallback(q, limit, includeOdds);
+    }
+
+    const results: SearchMarketResult[] = [];
+    for (const event of events) {
+      const markets = event.markets || [];
+      for (const m of markets) {
+        if (results.length >= limit) break;
+        if (m.closed || m.archived) continue;
+
+        const market: SearchMarketResult = {
+          id: m.id,
+          question: m.question || event.title || 'Unknown',
+          eventTitle: event.title,
+          endDate: m.endDate || event.endDate,
+          volume: m.volume,
+        };
+        if (includeOdds && m.outcomePrices && m.outcomes) {
+          try {
+            const prices = JSON.parse(m.outcomePrices) as string[];
+            const outcomes = JSON.parse(m.outcomes) as string[];
+            market.odds = outcomes.map((name, i) => ({
+              outcome: name,
+              price: parseFloat(prices[i] || '0'),
+              probability: parseFloat(prices[i] || '0'),
+            }));
+          } catch {
+            /* ignore parse errors */
+          }
+        }
+        results.push(market);
+      }
+    }
+    return results;
+  } catch (error) {
+    return searchMarketsFallback(q, limit, includeOdds);
+  }
+}
+
+async function searchMarketsFallback(
+  query: string,
+  limit: number,
+  includeOdds: boolean
+): Promise<SearchMarketResult[]> {
+  const events = await getTrendingMarkets(50, 'volume');
+  const q = query.toLowerCase();
+  const results: SearchMarketResult[] = [];
+
+  for (const event of events) {
+    if (results.length >= limit) break;
+    const markets = event.markets || [];
+    for (const m of markets) {
+      if (results.length >= limit) break;
+      if (m.closed || m.archived) continue;
+
+      const matchText = `${event.title || ''} ${m.question || ''} ${m.description || ''} ${(event.tags || []).map((t: { label?: string }) => t.label).join(' ')}`.toLowerCase();
+      if (!matchText.includes(q)) continue;
+
+      const market: SearchMarketResult = {
+        id: m.id,
+        question: m.question || event.title || 'Unknown',
+        eventTitle: event.title,
+        endDate: m.endDate || event.endDate,
+        volume: m.volume,
+      };
+      if (includeOdds && m.outcomePrices && m.outcomes) {
+        try {
+          const prices = JSON.parse(m.outcomePrices) as string[];
+          const outcomes = JSON.parse(m.outcomes) as string[];
+          market.odds = outcomes.map((name, i) => ({
+            outcome: name,
+            price: parseFloat(prices[i] || '0'),
+            probability: parseFloat(prices[i] || '0'),
+          }));
+        } catch {
+          /* ignore */
+        }
+      }
+      results.push(market);
+    }
+  }
+  return results;
+}

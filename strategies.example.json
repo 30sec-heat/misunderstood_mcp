@@ -17,9 +17,60 @@
         "marketType": "spot",
         "size": 0.001
       },
+      "sizeType": "fixed",
+      "sizeValue": 0.001,
+      "stopLoss": { "type": "percent", "value": 5 },
+      "takeProfit": { "type": "percent", "value": 10 },
+      "status": "stopped",
       "createdAt": "2026-03-06T00:00:00.000Z",
       "updatedAt": "2026-03-06T00:00:00.000Z",
       "enabled": true
+    },
+    {
+      "id": "eth-rsi-oversold",
+      "name": "ETH RSI oversold - long",
+      "strategyType": "conditional",
+      "condition": {
+        "type": "price",
+        "operator": "lt",
+        "value": 3000,
+        "symbol": "ETH"
+      },
+      "action": {
+        "action": "long",
+        "symbol": "ETH",
+        "exchange": "binance",
+        "marketType": "spot"
+      },
+      "sizeType": "percent_portfolio",
+      "sizeValue": 5,
+      "stopLoss": { "type": "trailing", "value": 3 },
+      "takeProfit": {
+        "type": "indicator",
+        "indicatorRef": { "name": "rsi", "condition": "gte", "value": 70, "period": 14 }
+      },
+      "status": "stopped",
+      "createdAt": "2026-03-06T00:00:00.000Z",
+      "updatedAt": "2026-03-06T00:00:00.000Z",
+      "enabled": true
+    },
+    {
+      "id": "tg-signal-long",
+      "name": "Telegram signal - go long",
+      "strategyType": "message_trigger",
+      "source": "telegram",
+      "chatIds": ["-1001234567890"],
+      "keywords": ["long", "buy", "bullish"],
+      "action": {
+        "action": "long",
+        "symbol": "BTC",
+        "exchange": "binance",
+        "marketType": "spot",
+        "size": 0.001
+      },
+      "createdAt": "2026-03-06T00:00:00.000Z",
+      "updatedAt": "2026-03-06T00:00:00.000Z",
+      "enabled": false
     }
   ],
   "updatedAt": "2026-03-06T00:00:00.000Z"

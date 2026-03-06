@@ -33,6 +33,12 @@ import { LiquidationModule } from './modules/liquidations/index.js';
 import { KnowledgeModule } from './modules/knowledge/index.js';
 import { TradingModule } from './modules/trading/index.js';
 import { OrderFlowModule } from './modules/orderflow/index.js';
+import { SolanaModule } from './modules/solana/index.js';
+import { SocialModule } from './modules/social/index.js';
+import { EarningsFeedModule } from './modules/earnings/index.js';
+import { MassiveModule } from './modules/massive/index.js';
+import { BreakingNewsModule } from './modules/news/breaking-news.js';
+import { ResearchModule } from './modules/research/index.js';
 // DatabaseManager removed - using PostgreSQL directly
 import { websocketManager } from './modules/base/websocket-manager.js';
 
@@ -92,6 +98,12 @@ class CryptoMCPServer {
       { name: 'knowledge', class: KnowledgeModule },
       { name: 'trading', class: TradingModule },
       { name: 'orderflow', class: OrderFlowModule },
+      { name: 'solana', class: SolanaModule },
+      { name: 'social', class: SocialModule },
+      { name: 'research', class: ResearchModule },
+      { name: 'earningsfeed', class: EarningsFeedModule },
+      { name: 'massive', class: MassiveModule },
+      { name: 'breaking_news', class: BreakingNewsModule },
     ];
 
     // Store module classes for lazy loading
@@ -146,7 +158,9 @@ class CryptoMCPServer {
       'telegram', 'polymarket', 'sentiment', 'news', 'reddit',
       'dexscreener', 'aave', 'analysis', 'defillama', 'deribit',
       'chart', 'econ_data', 'performance', 'alpha', 'quote',
-      'forecasting', 'liquidations', 'trading', 'orderflow'
+      'knowledge', 'research',
+      'forecasting', 'liquidations', 'trading', 'orderflow', 'solana', 'social',
+      'earningsfeed', 'massive', 'breaking_news'
     ];
     
     // Initializing essential modules
@@ -203,6 +217,11 @@ class CryptoMCPServer {
     
     if (deribitModule && forecastingModule && forecastingModule.setDeribitModule) {
       forecastingModule.setDeribitModule(deribitModule);
+    }
+
+    const socialModule = this.moduleInstances.get('social') as any;
+    if (newsModule && socialModule && socialModule.setNewsModule) {
+      socialModule.setNewsModule(newsModule);
     }
 
     // Wire up comprehensive forecast dependencies

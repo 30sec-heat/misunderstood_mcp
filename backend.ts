@@ -23,6 +23,10 @@ import { DeribitModule } from './src/modules/deribit/index.js';
 import { KnowledgeModule } from './src/modules/knowledge/index.js';
 import { TradingModule } from './src/modules/trading/index.js';
 import { OrderFlowModule } from './src/modules/orderflow/index.js';
+import { EarningsFeedModule } from './src/modules/earnings/index.js';
+import { MassiveModule } from './src/modules/massive/index.js';
+import { BreakingNewsModule } from './src/modules/news/breaking-news.js';
+import { ConfigModule } from './src/modules/config/index.js';
 
 // Service status interface
 interface ServiceStatus {
@@ -82,6 +86,10 @@ export class CryptoBackend {
         { class: KnowledgeModule, name: 'knowledge' },
         { class: TradingModule, name: 'trading' },
         { class: OrderFlowModule, name: 'orderflow' },
+        { class: EarningsFeedModule, name: 'earningsfeed' },
+        { class: MassiveModule, name: 'massive' },
+        { class: BreakingNewsModule, name: 'breaking_news' },
+        { class: ConfigModule, name: 'config' },
       ];
 
       // Initialize basic modules first

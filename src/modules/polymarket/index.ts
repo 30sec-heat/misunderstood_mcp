@@ -264,6 +264,34 @@ export class PolymarketModule extends BaseCryptoModule {
       },
       handler: this.getMarketComments.bind(this)
     });
+
+    this.addTool({
+      name: 'polymarket_search_markets',
+      description: "Search Polymarket for prediction markets by topic. Use when users ask 'check what odds or if there are odds for xyz'.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query (required) - e.g. "bitcoin 100k", "Trump election"' },
+          limit: { type: 'number', description: 'Max markets to return', default: 10 },
+          includeOdds: { type: 'boolean', description: 'Include current odds in results', default: true }
+        },
+        required: ['query']
+      },
+      handler: this.searchMarkets.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_check_odds',
+      description: "Quick check if Polymarket has odds for a topic. Returns yes/no plus matching markets with odds if found.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: { type: 'string', description: 'Topic to check (e.g. "bitcoin 100k", "Trump election")' }
+        },
+        required: ['topic']
+      },
+      handler: this.checkOdds.bind(this)
+    });
   }
 
   constructor() {
@@ -719,6 +747,29 @@ export class PolymarketModule extends BaseCryptoModule {
     if (!eventId && !marketId) return { error: 'eventId or marketId required', comments: [] };
     const comments = await gamma.getMarketComments(eventId, marketId, limit);
     return { comments, total: comments.length };
+  }
+
+  public async searchMarkets(args: any) {
+    const query = args.query?.trim();
+    const limit = args.limit ?? 10;
+    const includeOdds = args.includeOdds !== false;
+    if (!query) return { error: 'query is required', markets: [], message: 'Please provide a search query.' };
+    const markets = await gamma.searchMarkets(query, limit, includeOdds);
+    const message = markets.length > 0
+      ? `Found ${markets.length} markets for '${query}': ${markets.map(m => `"${m.question}"${m.odds ? ` (${m.odds.map(o => `${o.outcome}: ${(o.probability * 100).toFixed(1)}%`).join(', ')})` : ''}`).join('; ')}`
+      : `No markets found for '${query}'.`;
+    return { query, markets, total: markets.length, message };
+  }
+
+  public async checkOdds(args: any) {
+    const topic = args.topic?.trim();
+    if (!topic) return { found: false, error: 'topic is required', markets: [], message: 'Please provide a topic to check.' };
+    const markets = await gamma.searchMarkets(topic, 5, true);
+    const found = markets.length > 0;
+    const message = found
+      ? `Yes, Polymarket has odds for '${topic}'. Found ${markets.length} market(s): ${markets.map(m => `"${m.question}" - ${m.odds?.map(o => `${o.outcome}: ${(o.probability * 100).toFixed(1)}%`).join(', ')}`).join('; ')}`
+      : `No, Polymarket does not appear to have active odds for '${topic}'.`;
+    return { found, topic, markets, total: markets.length, message };
   }
 
   // Cleanup method for testing

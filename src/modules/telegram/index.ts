@@ -2,7 +2,9 @@ import { BaseCryptoModule, ToolDefinition } from '../base/module.js';
 import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 import { NewMessage } from 'telegram/events/index.js';
-import { TelegramPostgresDatabase } from './postgres-database.js';
+import { TelegramPostgresDatabase, TelegramMessage as DbTelegramMessage } from './postgres-database.js';
+import { SemanticSentimentEngine, SemanticSearchQuery } from '../sentiment/semantic-engine.js';
+import OpenAI from 'openai';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -38,13 +40,15 @@ interface TelegramSearchOptions {
 
 export class TelegramModule extends BaseCryptoModule {
   name = 'telegram';
-  
+
   private client: TelegramClient | null = null;
   private database: TelegramPostgresDatabase | null = null;
   private telegramConnected = false;
   private lastSyncTime: number = 0;
   private syncInterval: ReturnType<typeof setInterval> | null = null;
   private readonly SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  private openai: OpenAI | null = null;
+  private semanticEngine: SemanticSentimentEngine | null = null;
 
   protected setupTools() {
     this.addTool({
@@ -127,16 +131,171 @@ export class TelegramModule extends BaseCryptoModule {
       },
       handler: this.getTrendingTopics.bind(this)
     });
+
+    this.addTool({
+      name: 'telegram_summarize_chat_messages',
+      description: 'Summarize the last N messages from a Telegram chat. Use timeRange for last 1h or 24h, or limit for by count.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          chatIdOrUsername: {
+            type: 'string',
+            description: 'Chat ID (numeric) or chat title/username to match'
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of messages to summarize',
+            default: 50
+          },
+          timeRange: {
+            type: 'string',
+            description: 'Optional: fetch messages from this time window instead of by count',
+            enum: ['1h', '24h']
+          },
+          maxTokens: {
+            type: 'number',
+            description: 'Maximum tokens for the summary output',
+            default: 500
+          }
+        },
+        required: ['chatIdOrUsername']
+      },
+      handler: this.summarizeChatMessages.bind(this)
+    });
+
+    this.addTool({
+      name: 'telegram_search_messages_by_subject',
+      description: 'Search messages by subject/topic. Uses semantic search if embeddings available, otherwise keyword + recency.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          subject: {
+            type: 'string',
+            description: 'Subject or topic to search for (e.g. "what happened in Iran last 24 hrs")'
+          },
+          timeRange: {
+            type: 'string',
+            description: 'Time range for search',
+            enum: ['1h', '24h', '7d'],
+            default: '24h'
+          },
+          limit: {
+            type: 'number',
+            description: 'Maximum number of messages to return',
+            default: 50
+          },
+          chatId: {
+            type: 'string',
+            description: 'Optional chat ID or title to filter'
+          },
+          includeSummary: {
+            type: 'boolean',
+            description: 'Include AI summary of findings (requires OPENAI_API_KEY)',
+            default: true
+          }
+        },
+        required: ['subject']
+      },
+      handler: this.searchMessagesBySubject.bind(this)
+    });
+
+    this.addTool({
+      name: 'telegram_summarize_recent_by_topic',
+      description: 'Search for a topic in recent messages and summarize matching results.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          topic: {
+            type: 'string',
+            description: 'Topic to search for and summarize'
+          },
+          hours: {
+            type: 'number',
+            description: 'Number of hours to look back',
+            default: 24
+          },
+          chatIds: {
+            type: 'array',
+            description: 'Optional list of chat IDs or titles to restrict search',
+            items: { type: 'string' }
+          }
+        },
+        required: ['topic']
+      },
+      handler: this.summarizeRecentByTopic.bind(this)
+    });
   }
 
   constructor() {
     super();
-    
+
     // Initialize database immediately so tools can use it
     this.database = new TelegramPostgresDatabase();
     this.database.initialize().catch(error => {
       console.warn('Telegram database initialization failed:', error.message);
     });
+
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+  }
+
+  private async ensureSemanticEngine(): Promise<SemanticSentimentEngine | null> {
+    if (this.semanticEngine) return this.semanticEngine;
+    if (!process.env.OPENAI_API_KEY) return null;
+    try {
+      const pool = await this.postgresManager.getPool('telegram');
+      this.semanticEngine = new SemanticSentimentEngine(pool, process.env.OPENAI_API_KEY);
+      await this.semanticEngine.initialize();
+      return this.semanticEngine;
+    } catch (error) {
+      console.warn('Semantic engine initialization failed:', (error as Error).message);
+      return null;
+    }
+  }
+
+  private parseTimeRangeToHours(timeRange: string): number {
+    const map: Record<string, number> = {
+      '1h': 1,
+      '6h': 6,
+      '24h': 24,
+      '7d': 168,
+      '30d': 720
+    };
+    return map[timeRange] ?? 24;
+  }
+
+  private async summarizeWithOpenAI(
+    messages: Array<{ text: string; username?: string; date?: Date }>,
+    options: { maxTokens?: number; systemPrompt?: string } = {}
+  ): Promise<string> {
+    if (!this.openai || messages.length === 0) {
+      return 'OPENAI_API_KEY is required for summarization. Set it in your environment.';
+    }
+    const textBlock = messages
+      .slice(0, 100)
+      .map(m => {
+        const date = m.date instanceof Date ? m.date.toISOString() : m.date;
+        return `[${m.username || 'unknown'} @ ${date}]: ${(m.text || '').substring(0, 500)}`;
+      })
+      .join('\n');
+    const systemPrompt =
+      options.systemPrompt ||
+      'Summarize the following Telegram chat messages concisely. Highlight key points, themes, and notable opinions.';
+    try {
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: textBlock }
+        ],
+        max_tokens: options.maxTokens ?? 500,
+        temperature: 0.3
+      });
+      return response.choices[0]?.message?.content?.trim() || 'No summary generated.';
+    } catch (error) {
+      return `Summarization failed: ${(error as Error).message}`;
+    }
   }
 
   private async initializeDatabase() {
@@ -537,6 +696,281 @@ export class TelegramModule extends BaseCryptoModule {
         topics: [],
         error: `Analysis failed: ${error}`,
         message: 'Error analyzing trending topics'
+      };
+    }
+  }
+
+  public async summarizeChatMessages(args: {
+    chatIdOrUsername: string;
+    limit?: number;
+    timeRange?: '1h' | '24h';
+    maxTokens?: number;
+  }) {
+    if (!this.database) {
+      return {
+        summary: null,
+        messageCount: 0,
+        chatId: null,
+        timeframe: null,
+        error: 'Database not initialized'
+      };
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return {
+        summary: null,
+        messageCount: 0,
+        chatId: null,
+        timeframe: null,
+        error: 'OPENAI_API_KEY is required for summarization'
+      };
+    }
+    try {
+      const { chatIdOrUsername, limit = 50, timeRange, maxTokens = 500 } = args;
+      let messages: DbTelegramMessage[];
+      let timeframe: string;
+
+      if (timeRange) {
+        const hours = timeRange === '1h' ? 1 : 24;
+        messages = await this.database.getMessagesInTimeRange(hours, limit, chatIdOrUsername);
+        timeframe = `last ${timeRange}`;
+      } else {
+        messages = await this.database.getMessagesByChat(chatIdOrUsername, limit);
+        timeframe = `last ${messages.length} messages`;
+      }
+
+      const chatId = messages[0]?.chatId?.toString() ?? null;
+      const summary = await this.summarizeWithOpenAI(
+        messages.map(m => ({ text: m.text, username: m.username, date: m.date })),
+        { maxTokens }
+      );
+
+      return {
+        summary,
+        messageCount: messages.length,
+        chatId,
+        timeframe
+      };
+    } catch (error) {
+      return {
+        summary: null,
+        messageCount: 0,
+        chatId: null,
+        timeframe: null,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  public async searchMessagesBySubject(args: {
+    subject: string;
+    timeRange?: string;
+    limit?: number;
+    chatId?: string;
+    includeSummary?: boolean;
+  }) {
+    if (!this.database) {
+      return {
+        messages: [],
+        summary: null,
+        error: 'Database not initialized'
+      };
+    }
+    try {
+      const { subject, timeRange = '24h', limit = 50, chatId, includeSummary = true } = args;
+      const hoursBack = this.parseTimeRangeToHours(timeRange);
+
+      let messages: Array<{
+        id: number;
+        chat_id: number;
+        chat_title: string;
+        username: string;
+        message_text: string;
+        timestamp: string;
+      }> = [];
+
+      const semanticEngine = await this.ensureSemanticEngine();
+      if (semanticEngine && process.env.OPENAI_API_KEY) {
+        const semanticQuery: SemanticSearchQuery = {
+          query: subject,
+          time_range: timeRange,
+          sources: ['telegram'],
+          limit
+        };
+        const semanticResults = await semanticEngine.semanticSearch(semanticQuery);
+        if (semanticResults.length > 0) {
+          messages = semanticResults.map((m, idx) => {
+            const meta = (m.metadata || {}) as Record<string, unknown>;
+            return {
+              id: idx,
+              chat_id: (meta.chat_id as number) ?? 0,
+              chat_title: (meta.chat_title as string) ?? '',
+              username: (meta.username as string) ?? 'unknown',
+              message_text: m.text,
+              timestamp: m.date instanceof Date ? m.date.toISOString() : String(m.date)
+            };
+          });
+        }
+      }
+
+      if (messages.length === 0) {
+        const keywords = subject
+          .split(/\s+/)
+          .filter(w => w.length > 2 && !/^(the|and|or|in|on|at|for|to|of|a|an|is|what|how)$/i.test(w))
+          .slice(0, 5);
+        const keywordQuery = keywords.length > 0 ? keywords.join(' ') : subject;
+        const dbMessages = await this.database.searchMessagesWithFilters(keywordQuery, limit, {
+          timeRangeHours: hoursBack,
+          chatId
+        });
+        messages = dbMessages.map(m => ({
+          id: m.id,
+          chat_id: m.chatId,
+          chat_title: m.chatTitle,
+          username: m.username,
+          message_text: m.text,
+          timestamp: m.date instanceof Date ? m.date.toISOString() : String(m.date)
+        }));
+      }
+
+      let summary: string | null = null;
+      if (includeSummary && messages.length > 0 && process.env.OPENAI_API_KEY && this.openai) {
+        summary = await this.summarizeWithOpenAI(
+          messages.map(m => ({
+            text: m.message_text,
+            username: m.username,
+            date: new Date(m.timestamp)
+          })),
+          {
+            maxTokens: 400,
+            systemPrompt: `Given these Telegram messages about "${subject}", provide a concise summary of the key findings and themes.`
+          }
+        );
+      }
+
+      return {
+        messages,
+        total: messages.length,
+        subject,
+        timeRange,
+        summary
+      };
+    } catch (error) {
+      return {
+        messages: [],
+        summary: null,
+        error: (error as Error).message
+      };
+    }
+  }
+
+  public async summarizeRecentByTopic(args: {
+    topic: string;
+    hours?: number;
+    chatIds?: string[];
+  }) {
+    if (!this.database) {
+      return {
+        summary: null,
+        messageCount: 0,
+        topic: args.topic,
+        error: 'Database not initialized'
+      };
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return {
+        summary: null,
+        messageCount: 0,
+        topic: args.topic,
+        error: 'OPENAI_API_KEY is required for summarization'
+      };
+    }
+    try {
+      const { topic, hours = 24, chatIds } = args;
+      const limit = 100;
+
+      let allMessages: DbTelegramMessage[] = [];
+      if (chatIds && chatIds.length > 0) {
+        for (const cid of chatIds) {
+          const msgs = await this.database.getMessagesInTimeRange(hours, 50, cid);
+          allMessages.push(...msgs);
+        }
+        allMessages.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        allMessages = allMessages.slice(0, limit);
+      } else {
+        allMessages = await this.database.getMessagesInTimeRange(hours, limit);
+      }
+
+      const keywords = topic
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !/^(the|and|or|in|on|at|for|to|of|a|an|is|what|how)$/i.test(w))
+        .slice(0, 5);
+      const searchQuery = keywords.length > 0 ? keywords.join(' ') : topic;
+
+      let matching: DbTelegramMessage[] = [];
+      const semanticEngine = await this.ensureSemanticEngine();
+      if (semanticEngine && process.env.OPENAI_API_KEY) {
+        const semanticResults = await semanticEngine.semanticSearch({
+          query: topic,
+          time_range: hours <= 1 ? '1h' : hours <= 24 ? '24h' : '7d',
+          sources: ['telegram'],
+          limit
+        });
+        matching = semanticResults
+          .filter(m => m.text)
+          .map(m => {
+            const meta = (m.metadata || {}) as Record<string, unknown>;
+            return {
+              id: 0,
+              messageId: 0,
+              chatId: 0,
+              chatTitle: (meta.chat_title as string) ?? '',
+              userId: 0,
+              username: (meta.username as string) ?? 'unknown',
+              text: m.text,
+              date: m.date instanceof Date ? m.date : new Date(),
+              createdAt: new Date()
+            } as DbTelegramMessage;
+          });
+      }
+
+      if (matching.length === 0) {
+        matching = await this.database.searchMessagesWithFilters(searchQuery, limit, {
+          timeRangeHours: hours,
+          chatId: chatIds?.[0]
+        });
+        if (chatIds && chatIds.length > 1) {
+          const filtered: DbTelegramMessage[] = [];
+          for (const m of matching) {
+            const matchTitle = chatIds.some(
+              c => m.chatId.toString() === c || m.chatTitle?.toLowerCase().includes(c.toLowerCase())
+            );
+            if (matchTitle) filtered.push(m);
+          }
+          matching = filtered;
+        }
+      }
+
+      const summary = await this.summarizeWithOpenAI(
+        matching.map(m => ({ text: m.text, username: m.username, date: m.date })),
+        {
+          maxTokens: 500,
+          systemPrompt: `Summarize the following Telegram messages about "${topic}". Highlight key points, consensus, and notable opinions.`
+        }
+      );
+
+      return {
+        summary,
+        messageCount: matching.length,
+        topic,
+        hours,
+        chatIds: chatIds ?? null
+      };
+    } catch (error) {
+      return {
+        summary: null,
+        messageCount: 0,
+        topic: args.topic,
+        error: (error as Error).message
       };
     }
   }

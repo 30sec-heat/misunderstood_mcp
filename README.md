@@ -13,34 +13,43 @@ This is an MCP server tailored to crypto use - completely free and open source. 
 
 **TLDR:** Run the backend, npm install, create the db with the script and you're good to go.
 
-### 🤖 AI Trading Agent (CLI + MCP)
+### 🤖 Ysalis - AI Trading Agent (CLI + MCP)
 
-Turn natural language into automated trading strategies. Talk to the agent, describe conditions like *"bitcoin goes up when xyz... take a long"*, and it will parse, save, and execute.
+Ysalis is the CLI-based AI trading agent. Turn natural language into automated trading strategies. Talk to it, describe conditions like *"bitcoin goes up when xyz... take a long"*, and it will parse, save, and execute.
 
 **Quick start:**
 
 ```bash
 # Interactive chat with MCP tools
-npm run agent
+npm run ysalis
+# or: npm run agent
 
 # With backend API (recommended - faster)
-npm run server &          # Start HTTP API on :3000
-npm run agent -- -b http://localhost:3000
+npm run server &               # Start HTTP API on :3000
+npm run ysalis -- -b http://localhost:3000
+
+# Strategy dashboard - run/pause strategies, see PnL
+npm run ysalis-dashboard
+# or: npm run strategy-dashboard
 
 # Create strategy from natural language
-npm run agent -- -m strategy "when BTC goes above 100k I want to go long"
+npm run ysalis -- -m strategy "when BTC goes above 100k I want to go long"
 
 # Run strategy executor (dry-run by default)
-npm run agent -- -m execute -d
+npm run ysalis -- -m execute -d
 
 # Automated backend (polls strategies, executes when conditions met)
-npm run automated          # Dry-run (safe)
-npm run automated:live     # Live orders (requires API keys)
+npm run automated              # Dry-run (safe)
+npm run automated:live         # Live orders (requires API keys)
 ```
 
 **CLI options:** `-m chat|strategy|execute` `-e binance|bybit|both` `-k spot|futures|both` `-d` (dry-run) `-b <backend-url>`
 
+**How Ysalis calls MCP tools:** The agent uses heuristic matching (e.g. "price" → quote tool, "strategy keywords" → NL parser) and explicit `/call <tool> <args>`. When used as an MCP server from Cursor/Claude, those clients perform chain-of-thought: the LLM sees available tools, reasons about the user query, and decides which tools to call (often chaining multiple calls). For full autonomous tool chaining from the CLI, use `--backend-url` with a client that supports tool use.
+
 **Exchanges:** Binance & Bybit (spot + futures). Set `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, `BYBIT_API_KEY`, `BYBIT_SECRET_KEY` in `.env`.
+
+**Set API keys via chat:** Say "set my Binance API key to abc123", "add OPENAI_API_KEY sk-xxx", or use `/set BINANCE_API_KEY abc123`. Uses `config_set_env_var` MCP tool. Restart server to pick up changes.
 
 **Strategy parsing:** Requires `OPENAI_API_KEY` for natural language → structured strategy conversion.
 
@@ -95,12 +104,18 @@ After installation, connect to your preferred AI client:
 - Requires `COINALYZE_API_KEY` in `.env`
 
 ### **Polymarket**
+- **Search markets / check odds**: `polymarket_search_markets`, `polymarket_check_odds` – "check what odds for xyz", search by topic
 - **Trending / by category / ending soon**: Market discovery and filtering
 - **Market details**: Full metadata, volume, liquidity, resolution
 - **Price history**: Historical prices via CLOB API
 - **User positions**: Portfolio by wallet address (Data API)
 - **Resolved events / upcoming resolutions**
 - **Market comments**: Sentiment and discussion per market
+
+### **Telegram**
+- **Summarize chat**: `telegram_summarize_chat_messages` – summarize last N messages of a chat
+- **Search by subject**: `telegram_search_messages_by_subject` – e.g. "what happened in Iran last 24 hrs" (RAG-style)
+- **Summarize by topic**: `telegram_summarize_recent_by_topic` – search + AI summary
 
 ### **Sentiment**
 - **Unified score**: Aggregated Telegram + Reddit (+ News) sentiment
@@ -109,6 +124,38 @@ After installation, connect to your preferred AI client:
 - **Extremes detection**: Fear/greed spike detection
 - **Topic query**: Semantic search by keyword/topic
 - **Health check**: Source availability (Telegram, Reddit, semantic engine)
+
+### **Streaming / Real-time (Price & Message Monitoring)**
+- **Price WebSockets**: Binance (spot + futures) and Bybit ticker streams feed the strategy executor
+- **LivePriceFeed**: WebSocket-first price source with REST fallback for condition evaluation
+- **MessageStreamBridge**: Polls Telegram for new messages; message-trigger strategies fire when channel posts match keywords
+- **MessageTriggerStrategy**: `strategyType: 'message_trigger'` with `chatIds`, `keywords`, `regex`
+- **MCP tools**: `streaming_get_status`, `streaming_subscribe_prices`
+- See `src/streaming/README.md` for architecture
+
+### **Strategy Management**
+- **Dashboard**: `npm run ysalis-dashboard` – list strategies, run/pause/stop, view PnL
+- **Per-strategy sizing**: fixed, percent_portfolio, risk_amount
+- **Stops & targets**: price, percent, trailing, indicator-based (e.g. RSI exit)
+- **API**: GET/POST `/strategies`, `/strategies/:id/run`, `/pause`, `/stop`
+
+### **Research & Search**
+- **research_search**: Web (Brave/Serper) + database – search online and internal sources
+- **knowledge_search_all**: Unified search across knowledge, Telegram, Reddit, Polymarket, strategies
+
+### **Solana**
+- **Token metadata**: `solana_get_token_metadata`, `solana_search_token_by_name`
+- **Swap quote**: `solana_get_swap_quote` – Jupiter API (no execution)
+- **Social mentions**: `social_search_coin_mentions` – coin mentions (RSS, web search; Twitter via Brave/Serper if keys set)
+
+### **Config**
+- **config_set_env_var**: Add or update API keys / env vars in `.env` by speaking to the agent (e.g. "set my Binance API key to xyz")
+- **config_list_allowed_keys**: List which keys can be set (API keys, optional config – excludes DB/system vars)
+
+### **Financial Data (TradFi)**
+- **Earnings Feed API**: SEC filings, insider transactions, 13F holdings, company profiles (`earningsfeed_*` tools)
+- **Massive API**: Options quotes, snapshots, contracts, stock OHLC (`massive_*` tools)
+- **Crypto News API**: Breaking news, search by symbol (`news_breaking_crypto`, `news_search_crypto`)
 
 ### **Market Intelligence**
 - **Aave**: Lending rates, collateral analysis, yield opportunities, risk assessment
