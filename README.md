@@ -20,6 +20,12 @@ Ysalis is the CLI-based AI trading agent. Turn natural language into automated t
 **Quick start:**
 
 ```bash
+# First run: guided setup (AI model, exchange, API keys, Telegram)
+npm run ysalis
+
+# Re-run setup anytime
+npm run ysalis -- --setup
+
 # Interactive chat with MCP tools
 npm run ysalis
 # or: npm run agent

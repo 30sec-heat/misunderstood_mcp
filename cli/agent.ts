@@ -24,6 +24,12 @@ import {
   getStrategyRunner,
   type ConditionalStrategy,
 } from '../src/strategy/index.js';
+import {
+  runSetupWizard,
+  isSetupComplete,
+  loadConfig,
+  type YsalisConfig,
+} from './setup-wizard.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -624,14 +630,28 @@ async function main(): Promise<void> {
       "Market: 'spot' | 'futures' | 'both'",
       'both'
     )
-    .option('-d, --dry-run', 'No real orders, simulation only', false)
-    .option('-b, --backend-url <url>', 'Backend API URL (e.g. http://localhost:3000)')
-    .parse();
+  .option('-d, --dry-run', 'No real orders, simulation only', false)
+  .option('-b, --backend-url <url>', 'Backend API URL (e.g. http://localhost:3000)')
+  .option('--setup', 'Run first-time setup wizard (or re-run to reconfigure)')
+  .parse();
 
   const opts = program.opts();
+
+  if (opts.setup) {
+    await runSetupWizard(true);
+    console.log('\nSetup complete. Run "npm run ysalis" to start.\n');
+    process.exit(0);
+  }
+
+  if (!isSetupComplete()) {
+    console.log('\n  Welcome to Ysalis! First-time setup:\n');
+    await runSetupWizard(false);
+  }
+
+  const saved = loadConfig();
   const mode = (opts.mode || 'chat') as 'chat' | 'strategy' | 'execute';
-  const exchange = (opts.exchange || 'both') as 'binance' | 'bybit' | 'both';
-  const market = (opts.market || 'both') as 'spot' | 'futures' | 'both';
+  const exchange = (opts.exchange || saved?.preferredExchange || 'both') as 'binance' | 'bybit' | 'both';
+  const market = (opts.market || saved?.marketType || 'both') as 'spot' | 'futures' | 'both';
 
   const validModes = ['chat', 'strategy', 'execute'];
   const validExchanges = ['binance', 'bybit', 'both'];
@@ -650,11 +670,15 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  const dryRun = opts.dryRun !== undefined
+    ? !!opts.dryRun
+    : (saved?.dryRunDefault ?? true);
+
   const config: AgentConfig = {
     mode,
     exchange,
     market,
-    dryRun: !!opts.dryRun,
+    dryRun,
     backendUrl: opts.backendUrl,
   };
 
