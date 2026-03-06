@@ -1,8 +1,11 @@
 import { BaseCryptoModule, ToolDefinition } from '../base/module.js';
 import axios from 'axios';
-import { PolymarketPostgresDatabase, MarketRecord, OutcomeRecord, PriceHistoryRecord } from './postgres-database.js';
+import { PolymarketPostgresDatabase, MarketRecord } from './postgres-database.js';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as gamma from './gamma-client.js';
+import { getPriceHistory } from './clob-client.js';
+import { getUserPositions } from './data-api-client.js';
 
 // TypeScript interfaces for Polymarket data based on actual API response
 interface PolymarketOutcome {
@@ -136,6 +139,130 @@ export class PolymarketModule extends BaseCryptoModule {
         required: ['marketId']
       },
       handler: this.analyzeMarketSentiment.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_trending_markets',
+      description: 'Get trending prediction markets from Polymarket Gamma API, sorted by volume or liquidity',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max number of markets to return', default: 20 },
+          sortBy: { type: 'string', description: 'Sort field', enum: ['volume', 'liquidity', 'created'], default: 'volume' }
+        }
+      },
+      handler: this.getTrendingMarkets.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_markets_by_category',
+      description: 'Get markets filtered by category/tag (e.g. politics, crypto, sports)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', description: 'Category slug or label (e.g. politics, crypto)' },
+          limit: { type: 'number', description: 'Max number of markets', default: 20 }
+        },
+        required: ['category']
+      },
+      handler: this.getMarketsByCategory.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_ending_soon',
+      description: 'Get markets ending within a specified number of days',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max number of markets', default: 20 },
+          withinDays: { type: 'number', description: 'Days until resolution', default: 7 }
+        }
+      },
+      handler: this.getEndingSoon.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_market_details',
+      description: 'Get full details for a specific market or event by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          marketId: { type: 'string', description: 'Market condition ID or event ID' }
+        },
+        required: ['marketId']
+      },
+      handler: this.getMarketDetailsTool.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_price_history',
+      description: 'Get historical price data for a market from CLOB API',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          market: { type: 'string', description: 'Market condition ID (required)' },
+          interval: { type: 'string', description: 'Time interval', enum: ['max', 'all', '1m', '1h', '6h', '1d', '1w'], default: '1d' },
+          startTs: { type: 'number', description: 'Optional start unix timestamp' },
+          endTs: { type: 'number', description: 'Optional end unix timestamp' }
+        },
+        required: ['market']
+      },
+      handler: this.getPriceHistoryTool.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_user_positions',
+      description: 'Get current open positions for a user by wallet address (Data API)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          user: { type: 'string', description: 'User wallet address (0x-prefixed)' },
+          limit: { type: 'number', description: 'Max positions to return', default: 100 },
+          market: { type: 'string', description: 'Filter by market condition ID' },
+          eventId: { type: 'string', description: 'Filter by event ID' }
+        },
+        required: ['user']
+      },
+      handler: this.getUserPositionsTool.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_resolved_events',
+      description: 'Get recently resolved prediction market events',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max events to return', default: 20 }
+        }
+      },
+      handler: this.getResolvedEvents.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_upcoming_resolutions',
+      description: 'Get events with resolutions coming up within N days',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          limit: { type: 'number', description: 'Max events', default: 20 },
+          withinDays: { type: 'number', description: 'Days until resolution', default: 7 }
+        }
+      },
+      handler: this.getUpcomingResolutions.bind(this)
+    });
+
+    this.addTool({
+      name: 'polymarket_get_market_comments',
+      description: 'Get comments for an event or market',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          eventId: { type: 'string', description: 'Event ID (preferred if available)' },
+          marketId: { type: 'string', description: 'Market ID (if no eventId)' },
+          limit: { type: 'number', description: 'Max comments', default: 20 }
+        }
+      },
+      handler: this.getMarketComments.bind(this)
     });
   }
 
@@ -520,6 +647,78 @@ export class PolymarketModule extends BaseCryptoModule {
         message: 'Error analyzing market sentiment'
       };
     }
+  }
+
+  public async getTrendingMarkets(args: any) {
+    const limit = args.limit ?? 20;
+    const sortBy = args.sortBy ?? 'volume';
+    const events = await gamma.getTrendingMarkets(limit, sortBy);
+    return { events, total: events.length, sortBy };
+  }
+
+  public async getMarketsByCategory(args: any) {
+    const category = args.category;
+    const limit = args.limit ?? 20;
+    if (!category) return { error: 'category is required', events: [] };
+    const events = await gamma.getMarketsByCategory(category, limit);
+    return { events, total: events.length, category };
+  }
+
+  public async getEndingSoon(args: any) {
+    const limit = args.limit ?? 20;
+    const withinDays = args.withinDays ?? 7;
+    const events = await gamma.getEndingSoon(limit, withinDays);
+    return { events, total: events.length, withinDays };
+  }
+
+  public async getMarketDetailsTool(args: any) {
+    const marketId = args.marketId;
+    if (!marketId) return { error: 'marketId is required' };
+    const details = await gamma.getMarketDetails(marketId);
+    if (!details) return { error: 'Market not found', marketId };
+    return { market: details };
+  }
+
+  public async getPriceHistoryTool(args: any) {
+    const market = args.market;
+    const interval = args.interval ?? '1d';
+    const startTs = args.startTs;
+    const endTs = args.endTs;
+    if (!market) return { error: 'market is required', history: [] };
+    const history = await getPriceHistory(market, interval, startTs, endTs);
+    return { market, interval, history, count: history.length };
+  }
+
+  public async getUserPositionsTool(args: any) {
+    const user = args.user;
+    const limit = args.limit ?? 100;
+    const market = args.market;
+    const eventId = args.eventId;
+    if (!user) return { error: 'user (wallet address) is required', positions: [] };
+    const positions = await getUserPositions(user, { limit, market, eventId });
+    return { user, positions, total: positions.length };
+  }
+
+  public async getResolvedEvents(args: any) {
+    const limit = args.limit ?? 20;
+    const events = await gamma.getResolvedEvents(limit);
+    return { events, total: events.length };
+  }
+
+  public async getUpcomingResolutions(args: any) {
+    const limit = args.limit ?? 20;
+    const withinDays = args.withinDays ?? 7;
+    const events = await gamma.getUpcomingResolutions(limit, withinDays);
+    return { events, total: events.length, withinDays };
+  }
+
+  public async getMarketComments(args: any) {
+    const eventId = args.eventId;
+    const marketId = args.marketId;
+    const limit = args.limit ?? 20;
+    if (!eventId && !marketId) return { error: 'eventId or marketId required', comments: [] };
+    const comments = await gamma.getMarketComments(eventId, marketId, limit);
+    return { comments, total: comments.length };
   }
 
   // Cleanup method for testing
