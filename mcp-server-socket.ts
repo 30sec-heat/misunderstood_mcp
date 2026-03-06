@@ -30,6 +30,7 @@ import { AlphaScannerModule } from './src/modules/alpha/index.js';
 import { DeribitModule } from './src/modules/deribit/index.js';
 import { KnowledgeModule } from './src/modules/knowledge/index.js';
 import { TradingModule } from './src/modules/trading/index.js';
+import { OrderFlowModule } from './src/modules/orderflow/index.js';
 
 // Base module interface
 export interface CryptoModule {
@@ -86,6 +87,7 @@ class SocketMCPServer {
       { name: 'deribit', class: DeribitModule },
       { name: 'knowledge', class: KnowledgeModule },
       { name: 'trading', class: TradingModule },
+      { name: 'orderflow', class: OrderFlowModule },
     ];
 
     // Initialize basic modules first
