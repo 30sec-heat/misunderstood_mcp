@@ -13,10 +13,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { ClaudeClient, type ConversationMessage } from '../src/claude-client.js';
 
 // Strategy automation
 import {
-  parseNaturalLanguageStrategy,
   parsedToConditionalStrategy,
   loadStrategies,
   upsertStrategy,
@@ -170,15 +170,16 @@ function printBanner(config: AgentConfig): void {
     console.log(`Commands:
   /tools              List available MCP tools
   /call <name> [json] Call a tool (e.g. /call get_comprehensive_quotes '{"symbol":"BTC"}')
-  /set <KEY> <value>  Set env var / API key (e.g. /set BINANCE_API_KEY abc123)
+  /set <KEY> <value>  Set env var / API key (e.g. /set ANTHROPIC_API_KEY sk-xxx)
   /strategy <text>    Parse natural language into a strategy (e.g. "when BTC > 100k go long")
   /strategies         List saved strategies
   /save <id>          Save last parsed strategy with given id
   /help               Show this help
   /exit or Ctrl+C     Exit
 
+Chat naturally with Ysalis! Ask questions, get crypto insights, or describe trading strategies.
 Multi-line input: Enter empty line to send your message.
-Set API key: "set my Binance API key to abc123" or "add OPENAI_API_KEY sk-xxx"
+Set API key: "set my Claude API key to sk-ant-xxx" or "add ANTHROPIC_API_KEY sk-ant-xxx"
 Strategy examples: "bitcoin goes up when xyz, take a long" | "when ETH drops 5% go short"
 `);
   }
@@ -189,7 +190,16 @@ Strategy examples: "bitcoin goes up when xyz, take a long" | "when ETH drops 5% 
 /** Last parsed strategy (for /save) */
 let lastParsedStrategy: { parsed: any; strategy: ConditionalStrategy } | null = null;
 
+/** Claude client for AI conversations */
+let claudeClient: ClaudeClient | null = null;
+
+/** Conversation history for context */
+let conversationHistory: ConversationMessage[] = [];
+
 async function runChatMode(config: AgentConfig, toolRunner: ToolRunner): Promise<void> {
+  // Initialize Claude client
+  claudeClient = new ClaudeClient();
+  
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -351,7 +361,13 @@ async function handleStrategyCommand(arg: string, config: AgentConfig): Promise<
   }
   try {
     process.stdout.write('Ysalis> Parsing... ');
-    const parsed = await parseNaturalLanguageStrategy(text);
+    
+    // Use Claude for strategy parsing
+    if (!claudeClient) {
+      claudeClient = new ClaudeClient();
+    }
+    
+    const parsed = await claudeClient.parseStrategy(text);
     const strategy = parsedToConditionalStrategy(parsed, {
       id: `strat-${Date.now()}`,
       name: `${parsed.symbol} ${parsed.action} (${parsed.condition.type})`,
@@ -362,8 +378,8 @@ async function handleStrategyCommand(arg: string, config: AgentConfig): Promise<
     console.log('Ysalis> Use /save <id> to save, or /strategy with new text.');
   } catch (err) {
     console.log('\nYsalis> Error:', (err as Error).message);
-    if ((err as Error).message?.includes('OPENAI_API_KEY')) {
-      console.log('Ysalis> Set OPENAI_API_KEY in .env for natural language parsing.');
+    if ((err as Error).message?.includes('API key')) {
+      console.log('Ysalis> Set ANTHROPIC_API_KEY in .env for natural language parsing.');
     }
   }
 }
@@ -391,6 +407,8 @@ function parseEnvSetFromMessage(message: string): { key: string; value: string }
     binance: 'BINANCE_API_KEY',
     bybit: 'BYBIT_API_KEY',
     openai: 'OPENAI_API_KEY',
+    anthropic: 'ANTHROPIC_API_KEY',
+    claude: 'ANTHROPIC_API_KEY',
     coinalyze: 'COINALYZE_API_KEY',
     brave: 'BRAVE_SEARCH_API_KEY',
     serper: 'SERPER_API_KEY',
@@ -410,7 +428,7 @@ function parseEnvSetFromMessage(message: string): { key: string; value: string }
   if (m && /_KEY|_SECRET|API_ID|API_HASH/.test(m[1])) return { key: m[1].toUpperCase(), value: m[2].trim() };
 
   // "my binance api key is abc123" or "add my openai key: sk-xxx"
-  m = lower.match(/(?:my|add)\s+(binance|bybit|openai|coinalyze|brave|serper|earnings|massive|polygon|news|deribit)\s+(?:api\s+)?key\s*(?:is|:|=)?\s*(.+)/i);
+  m = lower.match(/(?:my|add)\s+(binance|bybit|openai|anthropic|claude|coinalyze|brave|serper|earnings|massive|polygon|news|deribit)\s+(?:api\s+)?key\s*(?:is|:|=)?\s*(.+)/i);
   if (m) {
     const svc = m[1].toLowerCase();
     const key = serviceToKey[svc] || (svc.toUpperCase() + '_API_KEY');
@@ -448,10 +466,8 @@ async function handleUserMessage(
   config: AgentConfig
 ): Promise<void> {
   const lower = message.toLowerCase();
-  const symbolMatch = message.match(/\b(BTC|ETH|SOL|ADA|XRP|DOGE|AVAX|LINK|DOT|MATIC|USDT|USDC)\b/i);
-  const symbol = symbolMatch?.[1] || 'BTC';
 
-  // Env/API key: "set my binance api key to xyz", "add OPENAI_API_KEY sk-xxx"
+  // Env/API key: "set my binance api key to xyz", "add ANTHROPIC_API_KEY sk-xxx"
   const envSet = parseEnvSetFromMessage(message);
   if (envSet) {
     try {
@@ -470,7 +486,13 @@ async function handleUserMessage(
   if (looksLikeStrategy) {
     try {
       process.stdout.write('Ysalis> Parsing as strategy... ');
-      const parsed = await parseNaturalLanguageStrategy(message);
+      
+      // Use Claude for strategy parsing instead of OpenAI
+      if (!claudeClient) {
+        claudeClient = new ClaudeClient();
+      }
+      
+      const parsed = await claudeClient.parseStrategy(message);
       const strategy = parsedToConditionalStrategy(parsed, {
         id: `strat-${Date.now()}`,
         name: `${parsed.symbol} ${parsed.action}`,
@@ -481,38 +503,91 @@ async function handleUserMessage(
       console.log('Ysalis> Use /save <id> to save this strategy. Run automated-backend to execute.');
     } catch (err) {
       console.log('\nYsalis> Could not parse as strategy:', (err as Error).message);
-      if ((err as Error).message?.includes('OPENAI_API_KEY')) {
-        console.log('Ysalis> Set OPENAI_API_KEY in .env for natural language parsing.');
+      if ((err as Error).message?.includes('API key')) {
+        console.log('Ysalis> Set ANTHROPIC_API_KEY in .env for natural language parsing.');
       }
     }
     return;
   }
 
-  if (lower.includes('price') || lower.includes('quote') || lower.includes('get')) {
-    try {
-      process.stdout.write('Ysalis> ');
-      const result = await toolRunner.callTool('get_comprehensive_quotes', { symbol });
-      const text =
-        typeof result === 'object' && result?.content
-          ? (result as any).content.find((c: any) => c.type === 'text')?.text
-          : null;
-      console.log(text || JSON.stringify(result, null, 2));
-    } catch {
-      console.log(
-        `Ysalis> I can help with quotes. Try: /call get_comprehensive_quotes '{"symbol":"${symbol}"}'`
-      );
+  // For all other messages, use Claude for natural conversation
+  try {
+    if (!claudeClient) {
+      claudeClient = new ClaudeClient();
     }
-    return;
-  }
 
-  console.log(
-    `Ysalis> Say "get price of BTC", describe a strategy ("when BTC > 100k go long"), or use /tools for commands.`
-  );
+    process.stdout.write('Ysalis> ');
+    
+    // Check if the message seems to need tool usage
+    const needsToolUsage = 
+      lower.includes('price') || 
+      lower.includes('quote') || 
+      lower.includes('market') ||
+      lower.includes('chart') ||
+      lower.includes('news') ||
+      lower.includes('sentiment') ||
+      lower.includes('liquidation') ||
+      lower.includes('funding') ||
+      lower.includes('volume') ||
+      lower.includes('aave') ||
+      lower.includes('defi') ||
+      lower.includes('telegram') ||
+      lower.includes('reddit') ||
+      lower.includes('analysis');
+
+    let toolContext = '';
+    
+    if (needsToolUsage) {
+      // Try to get relevant data using tools
+      const symbolMatch = message.match(/\b(BTC|ETH|SOL|ADA|XRP|DOGE|AVAX|LINK|DOT|MATIC|USDT|USDC)\b/i);
+      const symbol = symbolMatch?.[1] || 'BTC';
+      
+      try {
+        if (lower.includes('price') || lower.includes('quote')) {
+          const result = await toolRunner.callTool('get_comprehensive_quotes', { symbol });
+          const text = typeof result === 'object' && result?.content
+            ? (result as any).content.find((c: any) => c.type === 'text')?.text
+            : JSON.stringify(result, null, 2);
+          toolContext = `\n\nCurrent market data for ${symbol}:\n${text}`;
+        }
+      } catch (err) {
+        toolContext = `\n\nNote: Could not fetch current market data (${(err as Error).message})`;
+      }
+    }
+
+    const response = await claudeClient.sendMessage(
+      message + toolContext,
+      conversationHistory
+    );
+    
+    console.log(response);
+    
+    // Update conversation history
+    conversationHistory.push({ role: 'user', content: message });
+    conversationHistory.push({ role: 'assistant', content: response });
+    
+    // Keep conversation history manageable (last 10 exchanges)
+    if (conversationHistory.length > 20) {
+      conversationHistory = conversationHistory.slice(-20);
+    }
+    
+  } catch (err) {
+    console.log('Error:', (err as Error).message);
+    if ((err as Error).message?.includes('API key')) {
+      console.log('Ysalis> Set ANTHROPIC_API_KEY in .env to enable AI conversations.');
+      console.log('Ysalis> You can still use /tools and /call commands for crypto data.');
+    }
+  }
 }
 
 // --- Strategy / Execute modes ---
 
 async function runStrategyMode(config: AgentConfig): Promise<void> {
+  // Initialize Claude client
+  if (!claudeClient) {
+    claudeClient = new ClaudeClient();
+  }
+  
   const args = program.args?.join(' ').trim();
   if (args) {
     await handleStrategyCommand(args, config);

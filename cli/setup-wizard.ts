@@ -6,6 +6,7 @@
 import * as readline from 'readline';
 import * as fs from 'fs';
 import * as path from 'path';
+import { ClaudeClient } from '../src/claude-client.js';
 
 const CONFIG_DIR = path.join(process.cwd(), '.ysalis');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -21,7 +22,7 @@ export interface YsalisConfig {
 }
 
 const DEFAULT_CONFIG: YsalisConfig = {
-  aiModel: 'claude-sonnet-4-20250514',
+  aiModel: 'claude-3-5-sonnet-20241022',
   preferredExchange: 'both',
   marketType: 'both',
   dryRunDefault: true,
@@ -116,26 +117,24 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
 
   // 1. AI Model (Claude only for now)
   console.log('\n📌 Step 1: AI Model');
-  console.log('   Ysalis uses Claude for natural language and tool-calling.\n');
-  const models = [
-    { id: '1', name: 'claude-sonnet-4-20250514', desc: 'Claude 4 Sonnet (recommended)' },
-    { id: '2', name: 'claude-opus-4-20250514', desc: 'Claude 4 Opus (most capable)' },
-    { id: '3', name: 'claude-3-5-sonnet-20241022', desc: 'Claude 3.5 Sonnet' },
-  ];
-  models.forEach((m) => console.log(`   ${m.id}. ${m.name} - ${m.desc}`));
-  const modelChoice = await prompt(rl, '\n   Select model (1-3)', '1');
-  const modelMap: Record<string, string> = {
-    '1': 'claude-sonnet-4-20250514',
-    '2': 'claude-opus-4-20250514',
-    '3': 'claude-3-5-sonnet-20241022',
-  };
-  config.aiModel = modelMap[modelChoice] || modelMap['1'];
+  console.log('   Ysalis uses Claude for natural language conversations and strategy parsing.\n');
+  
+  const availableModels = ClaudeClient.getAvailableModels();
+  availableModels.forEach((model, index) => {
+    console.log(`   ${index + 1}. ${model.name} - ${model.description}`);
+    console.log(`      Cost: $${model.inputCostPer1M}/1M input, $${model.outputCostPer1M}/1M output tokens`);
+  });
+  
+  const modelChoice = await prompt(rl, `\n   Select model (1-${availableModels.length})`, '1');
+  const selectedIndex = parseInt(modelChoice) - 1;
+  config.aiModel = availableModels[selectedIndex]?.id || availableModels[0].id;
 
-  console.log('   Claude requires an API key for AI features.');
-  const claudeKey = await prompt(rl, '   Claude API Key (from provider console)', '');
+  console.log('\n   Claude requires an API key for AI features.');
+  console.log('   Get your API key from: https://console.anthropic.com/');
+  const claudeKey = await prompt(rl, '   Anthropic API Key (sk-ant-...)', '');
   if (claudeKey) {
     setEnvVar('ANTHROPIC_API_KEY', claudeKey);
-    console.log('   ✓ Anthropic key saved');
+    console.log('   ✓ Anthropic API key saved');
   }
 
   // 2. Preferred Exchange
@@ -201,17 +200,8 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
     }
   }
 
-  // 9. OpenAI API Key (for strategy parsing & semantic search)
-  console.log('\n📌 Step 9: OpenAI API Key');
-  console.log('   Used for: strategy parsing ("when BTC > 100k go long"), semantic search.\n');
-  const oai = await prompt(rl, '   OpenAI API Key');
-  if (oai) {
-    setEnvVar('OPENAI_API_KEY', oai);
-    console.log('   ✓ OpenAI key saved');
-  }
-
-  // 10. Telegram
-  console.log('\n📌 Step 10: Telegram (Optional)');
+  // 9. Telegram
+  console.log('\n📌 Step 9: Telegram (Optional)');
   console.log('   For: channel monitoring, message-trigger strategies, sentiment.\n');
   console.log('   To get a session string, run: npx tsx utils/telegram-auth.ts');
   console.log('   Then paste the session string below, or skip.\n');
@@ -225,8 +215,8 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
     if (apiHash) setEnvVar('TELEGRAM_API_HASH', apiHash);
   }
 
-  // 11. Optional APIs
-  console.log('\n📌 Step 11: Optional APIs (skip all to continue)');
+  // 10. Optional APIs
+  console.log('\n📌 Step 10: Optional APIs (skip all to continue)');
   console.log('   Coinalyze (OI/liquidations), Earnings Feed, Crypto News, etc.\n');
   const coinalyze = await prompt(rl, '   Coinalyze API Key');
   if (coinalyze) setEnvVar('COINALYZE_API_KEY', coinalyze);

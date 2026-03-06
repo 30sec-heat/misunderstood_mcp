@@ -9,7 +9,6 @@
 
 export * from './types.js';
 export {
-  parseNaturalLanguageStrategy,
   parsedToConditionalStrategy,
 } from './nl-parser.js';
 export {
