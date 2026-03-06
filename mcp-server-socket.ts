@@ -31,6 +31,12 @@ import { DeribitModule } from './src/modules/deribit/index.js';
 import { KnowledgeModule } from './src/modules/knowledge/index.js';
 import { TradingModule } from './src/modules/trading/index.js';
 import { OrderFlowModule } from './src/modules/orderflow/index.js';
+import { SolanaModule } from './src/modules/solana/index.js';
+import { SocialModule } from './src/modules/social/index.js';
+import { EarningsFeedModule } from './src/modules/earnings/index.js';
+import { MassiveModule } from './src/modules/massive/index.js';
+import { BreakingNewsModule } from './src/modules/news/breaking-news.js';
+import { ResearchModule } from './src/modules/research/index.js';
 
 // Base module interface
 export interface CryptoModule {
@@ -88,6 +94,12 @@ class SocketMCPServer {
       { name: 'knowledge', class: KnowledgeModule },
       { name: 'trading', class: TradingModule },
       { name: 'orderflow', class: OrderFlowModule },
+      { name: 'solana', class: SolanaModule },
+      { name: 'social', class: SocialModule },
+      { name: 'research', class: ResearchModule },
+      { name: 'earningsfeed', class: EarningsFeedModule },
+      { name: 'massive', class: MassiveModule },
+      { name: 'breaking_news', class: BreakingNewsModule },
     ];
 
     // Initialize basic modules first
@@ -163,6 +175,13 @@ class SocketMCPServer {
     } catch (error) {
       console.error(' forecasting module initialization failed:', error);
       console.log(' Added 0 tools from forecasting module');
+    }
+
+    // Wire SocialModule -> NewsModule for free coin mention search
+    const newsModule = this.modules.get('news');
+    const socialModule = this.modules.get('social');
+    if (newsModule && socialModule && 'setNewsModule' in socialModule) {
+      (socialModule as any).setNewsModule(newsModule);
     }
 
     this.isInitialized = true;

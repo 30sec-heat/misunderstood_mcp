@@ -7,6 +7,36 @@
  * - TimeBasedStrategy: "at time X, do Y"
  */
 
+/** Size type for position sizing */
+export type SizeType = 'fixed' | 'percent_portfolio' | 'risk_amount';
+
+/** Stop loss / take profit types */
+export type StopTpType = 'price' | 'percent' | 'trailing' | 'indicator';
+export type StopTpTypeShort = 'price' | 'percent' | 'indicator';
+
+/** Indicator reference for data-based stop/TP (e.g. RSI < 30 exit) */
+export interface IndicatorRef {
+  name: 'rsi' | 'ema' | 'sma';
+  condition: 'lt' | 'lte' | 'gt' | 'gte' | 'eq';
+  value: number;
+  period?: number;
+}
+
+export interface StopLossConfig {
+  type: 'price' | 'percent' | 'trailing' | 'indicator';
+  value?: number; // price level, percent, or trailing percent
+  indicatorRef?: IndicatorRef;
+}
+
+export interface TakeProfitConfig {
+  type: 'price' | 'percent' | 'indicator';
+  value?: number;
+  indicatorRef?: IndicatorRef;
+}
+
+/** Strategy runtime status */
+export type StrategyStatus = 'running' | 'paused' | 'stopped';
+
 /** Base strategy metadata */
 export interface BaseStrategy {
   id: string;
@@ -14,6 +44,15 @@ export interface BaseStrategy {
   createdAt: string;
   updatedAt: string;
   enabled: boolean;
+  /** Runtime status (default: stopped) */
+  status?: StrategyStatus;
+  /** Position sizing */
+  sizeType?: SizeType;
+  sizeValue?: number;
+  /** Stop loss config */
+  stopLoss?: StopLossConfig;
+  /** Take profit config */
+  takeProfit?: TakeProfitConfig;
 }
 
 /** Condition types for price/trigger evaluation */

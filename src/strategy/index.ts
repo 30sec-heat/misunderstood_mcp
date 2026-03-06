@@ -27,3 +27,9 @@ export {
   removeStrategy,
   getStrategy,
 } from './storage.js';
+export {
+  getStrategyRunner,
+  type PositionRecord,
+  type ClosedTradeRecord,
+  type StrategyStateData,
+} from './strategy-runner.js';

@@ -21,6 +21,7 @@ import {
   loadStrategies,
   upsertStrategy,
   executeConditionalStrategy,
+  getStrategyRunner,
   type ConditionalStrategy,
 } from '../src/strategy/index.js';
 
@@ -101,7 +102,7 @@ class MCPSubprocessToolRunner implements ToolRunner {
     });
 
     this.client = new Client(
-      { name: 'ai-trading-agent', version: '1.0.0' },
+      { name: 'ysalis', version: '1.0.0' },
       { capabilities: { tools: {} } }
     );
 
@@ -151,7 +152,7 @@ function printBanner(config: AgentConfig): void {
 
   console.log(`
 ╔═══════════════════════════════════════════════════════════════╗
-║           AI Trading Agent - MCP Crypto Server               ║
+║           Ysalis - AI Trading Agent                          ║
 ╠═══════════════════════════════════════════════════════════════╣
 ║  Mode:    ${modeStr} Exchange: ${exchangeStr} ║
 ║  Market:  ${marketStr} Dry-run: ${dryRunStr} ║
@@ -227,7 +228,7 @@ async function runChatMode(config: AgentConfig, toolRunner: ToolRunner): Promise
           const toolName = match?.[1];
           const jsonArg = match?.[2]?.trim() || '{}';
           if (!toolName) {
-            console.log('Agent> Usage: /call <toolName> [json-args]');
+            console.log('Ysalis> Usage: /call <toolName> [json-args]');
           } else {
             await callToolByName(toolRunner, toolName, jsonArg);
           }
@@ -244,14 +245,14 @@ async function runChatMode(config: AgentConfig, toolRunner: ToolRunner): Promise
           if (lastParsedStrategy) {
             lastParsedStrategy.strategy.id = id;
             upsertStrategy(lastParsedStrategy.strategy);
-            console.log(`Agent> Saved strategy as "${id}"`);
+            console.log(`Ysalis> Saved strategy as "${id}"`);
           } else {
-            console.log('Agent> No strategy to save. Use /strategy <text> first.');
+            console.log('Ysalis> No strategy to save. Use /strategy <text> first.');
           }
           break;
         }
         default:
-          console.log(`Agent> Unknown command: ${cmd}. Type /help for commands.`);
+          console.log(`Ysalis> Unknown command: ${cmd}. Type /help for commands.`);
       }
       rl.prompt();
       return;
@@ -263,7 +264,7 @@ async function runChatMode(config: AgentConfig, toolRunner: ToolRunner): Promise
 
   rl.on('line', (line) => {
     processInput(line).catch((err) => {
-      console.error('Agent> Error:', err.message);
+      console.error('Ysalis> Error:', err.message);
       rl.prompt();
     });
   });
@@ -291,13 +292,13 @@ async function listTools(toolRunner: ToolRunner): Promise<void> {
     if ('listTools' in toolRunner && typeof toolRunner.listTools === 'function') {
       const result = await (toolRunner as any).listTools();
       const tools = result?.tools || [];
-      console.log('Agent> Available tools:');
+      console.log('Ysalis> Available tools:');
       (tools as any[]).forEach((t) => console.log(`  - ${t.name}: ${t.description || ''}`));
       return;
     }
-    console.log('Agent> Tool listing not available. Try /call get_comprehensive_quotes \'{"symbol":"BTC"}\'');
+    console.log('Ysalis> Tool listing not available. Try /call get_comprehensive_quotes \'{"symbol":"BTC"}\'');
   } catch (err) {
-    console.log('Agent>', (err as Error).message);
+    console.log('Ysalis>', (err as Error).message);
   }
 }
 
@@ -311,41 +312,41 @@ async function callToolByName(
     try {
       args = JSON.parse(jsonArg);
     } catch {
-      console.log('Agent> Invalid JSON arguments. Example: \'{"symbol":"BTC"}\'');
+      console.log('Ysalis> Invalid JSON arguments. Example: \'{"symbol":"BTC"}\'');
       return;
     }
   }
   try {
-    process.stdout.write('Agent> ');
+    process.stdout.write('Ysalis> ');
     const result = await toolRunner.callTool(name, args);
     console.log(JSON.stringify(result, null, 2));
   } catch (err) {
-    console.log('Agent> Error:', (err as Error).message);
+    console.log('Ysalis> Error:', (err as Error).message);
   }
 }
 
 async function handleStrategyCommand(arg: string, config: AgentConfig): Promise<void> {
   const text = arg.trim();
   if (!text) {
-    console.log('Agent> Usage: /strategy <natural language>');
-    console.log('Agent> Example: /strategy when bitcoin goes above 100k I want to go long');
+    console.log('Ysalis> Usage: /strategy <natural language>');
+    console.log('Ysalis> Example: /strategy when bitcoin goes above 100k I want to go long');
     return;
   }
   try {
-    process.stdout.write('Agent> Parsing... ');
+    process.stdout.write('Ysalis> Parsing... ');
     const parsed = await parseNaturalLanguageStrategy(text);
     const strategy = parsedToConditionalStrategy(parsed, {
       id: `strat-${Date.now()}`,
       name: `${parsed.symbol} ${parsed.action} (${parsed.condition.type})`,
     });
     lastParsedStrategy = { parsed, strategy };
-    console.log('\nAgent> Parsed strategy:');
+    console.log('\nYsalis> Parsed strategy:');
     console.log(JSON.stringify(strategy, null, 2));
-    console.log('Agent> Use /save <id> to save, or /strategy with new text.');
+    console.log('Ysalis> Use /save <id> to save, or /strategy with new text.');
   } catch (err) {
-    console.log('\nAgent> Error:', (err as Error).message);
+    console.log('\nYsalis> Error:', (err as Error).message);
     if ((err as Error).message?.includes('OPENAI_API_KEY')) {
-      console.log('Agent> Set OPENAI_API_KEY in .env for natural language parsing.');
+      console.log('Ysalis> Set OPENAI_API_KEY in .env for natural language parsing.');
     }
   }
 }
@@ -354,17 +355,17 @@ async function listStrategies(): Promise<void> {
   try {
     const strategies = loadStrategies();
     if (strategies.length === 0) {
-      console.log('Agent> No saved strategies. Use /strategy <text> then /save <id>');
+      console.log('Ysalis> No saved strategies. Use /strategy <text> then /save <id>');
       return;
     }
-    console.log(`Agent> ${strategies.length} strategy(ies):`);
+    console.log(`Ysalis> ${strategies.length} strategy(ies):`);
     strategies.forEach((s) => {
       const cond = (s as ConditionalStrategy).condition;
       const action = (s as ConditionalStrategy).action;
       console.log(`  - ${s.id}: ${action?.symbol} ${action?.action} (enabled: ${s.enabled})`);
     });
   } catch (err) {
-    console.log('Agent>', (err as Error).message);
+    console.log('Ysalis>', (err as Error).message);
   }
 }
 
@@ -383,20 +384,20 @@ async function handleUserMessage(
 
   if (looksLikeStrategy) {
     try {
-      process.stdout.write('Agent> Parsing as strategy... ');
+      process.stdout.write('Ysalis> Parsing as strategy... ');
       const parsed = await parseNaturalLanguageStrategy(message);
       const strategy = parsedToConditionalStrategy(parsed, {
         id: `strat-${Date.now()}`,
         name: `${parsed.symbol} ${parsed.action}`,
       });
       lastParsedStrategy = { parsed, strategy };
-      console.log('\nAgent> I parsed your idea as:');
+      console.log('\nYsalis> I parsed your idea as:');
       console.log(JSON.stringify(strategy, null, 2));
-      console.log('Agent> Use /save <id> to save this strategy. Run automated-backend to execute.');
+      console.log('Ysalis> Use /save <id> to save this strategy. Run automated-backend to execute.');
     } catch (err) {
-      console.log('\nAgent> Could not parse as strategy:', (err as Error).message);
+      console.log('\nYsalis> Could not parse as strategy:', (err as Error).message);
       if ((err as Error).message?.includes('OPENAI_API_KEY')) {
-        console.log('Agent> Set OPENAI_API_KEY in .env for natural language parsing.');
+        console.log('Ysalis> Set OPENAI_API_KEY in .env for natural language parsing.');
       }
     }
     return;
@@ -404,7 +405,7 @@ async function handleUserMessage(
 
   if (lower.includes('price') || lower.includes('quote') || lower.includes('get')) {
     try {
-      process.stdout.write('Agent> ');
+      process.stdout.write('Ysalis> ');
       const result = await toolRunner.callTool('get_comprehensive_quotes', { symbol });
       const text =
         typeof result === 'object' && result?.content
@@ -413,14 +414,14 @@ async function handleUserMessage(
       console.log(text || JSON.stringify(result, null, 2));
     } catch {
       console.log(
-        `Agent> I can help with quotes. Try: /call get_comprehensive_quotes '{"symbol":"${symbol}"}'`
+        `Ysalis> I can help with quotes. Try: /call get_comprehensive_quotes '{"symbol":"${symbol}"}'`
       );
     }
     return;
   }
 
   console.log(
-    `Agent> Say "get price of BTC", describe a strategy ("when BTC > 100k go long"), or use /tools for commands.`
+    `Ysalis> Say "get price of BTC", describe a strategy ("when BTC > 100k go long"), or use /tools for commands.`
   );
 }
 
@@ -464,13 +465,14 @@ async function runStrategyMode(config: AgentConfig): Promise<void> {
 }
 
 async function runExecuteMode(config: AgentConfig): Promise<void> {
-  const strategies = loadStrategies();
-  const conditional = strategies.filter(
-    (s): s is ConditionalStrategy => s.strategyType === 'conditional' && s.enabled
-  );
+  const runner = getStrategyRunner();
+  const conditional = runner.getStrategiesToExecute();
 
   if (conditional.length === 0) {
-    console.log('No enabled strategies. Create with: npm run agent -- -m strategy "when BTC > 100k go long"');
+    console.log('No running strategies. Mark strategies as running first:');
+    console.log('  - Use strategy dashboard: npm run strategy-dashboard -> run <id>');
+    console.log('  - Or set status to "running" in strategies.json');
+    console.log('Create strategies with: npm run agent -- -m strategy "when BTC > 100k go long"');
     return;
   }
 
@@ -478,6 +480,20 @@ async function runExecuteMode(config: AgentConfig): Promise<void> {
 
   const { TradingClient } = await import('../src/modules/trading/TradingClient.js');
   const client = new TradingClient();
+
+  const balanceFetcher = {
+    async fetchUsdtBalance(exchange: string, marketType: string): Promise<number> {
+      try {
+        const bal = await client.fetchBalance(
+          exchange as 'binance' | 'bybit',
+          marketType as 'spot' | 'futures'
+        );
+        return bal.total?.USDT ?? bal.balances?.USDT?.free ?? 0;
+      } catch {
+        return 0;
+      }
+    },
+  };
 
   const orderExecutor = config.dryRun
     ? async (params: any) => {
@@ -491,11 +507,15 @@ async function runExecuteMode(config: AgentConfig): Promise<void> {
         console.log(`[EXECUTED] ${params.action} ${params.symbol} on ${exchange}`);
       };
 
-  const executor = executeConditionalStrategy(conditional, {
-    dryRun: config.dryRun,
-    pollIntervalMs: 30_000,
-    orderExecutor,
-  });
+  const executor = executeConditionalStrategy(
+    () => runner.getStrategiesToExecute(),
+    {
+      dryRun: config.dryRun,
+      pollIntervalMs: 30_000,
+      orderExecutor,
+      balanceFetcher,
+    }
+  );
 
   process.on('SIGINT', () => {
     executor.stop();
@@ -508,8 +528,8 @@ async function runExecuteMode(config: AgentConfig): Promise<void> {
 
 async function main(): Promise<void> {
   program
-    .name('agent')
-    .description('AI Trading Agent - CLI for MCP crypto tools')
+    .name('ysalis')
+    .description('Ysalis - AI Trading Agent CLI for MCP crypto tools')
     .option(
       '-m, --mode <mode>',
       "Mode: 'chat' | 'strategy' | 'execute'",
