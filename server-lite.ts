@@ -13,7 +13,10 @@ import { TradingModule } from './src/modules/trading/index.js';
 import { OrderFlowModule } from './src/modules/orderflow/index.js';
 import { ResearchModule } from './src/modules/research/index.js';
 import { ConfigModule } from './src/modules/config/index.js';
+import { StreamingModule } from './src/modules/streaming/index.js';
 import { getStrategyRunner } from './src/strategy/strategy-runner.js';
+import { LivePriceFeed } from './src/streaming/live-price-feed.js';
+import { messageStreamBridge } from './src/streaming/message-stream-bridge.js';
 import { PriceFetcher } from './src/modules/quote/tools/PriceFetcher.js';
 import { ConditionalStrategyExecutor } from './src/strategy/executor.js';
 import { TradingClient } from './src/modules/trading/TradingClient.js';
@@ -27,6 +30,7 @@ const modules = [
   new OrderFlowModule(),
   new ResearchModule(),
   new ConfigModule(),
+  new StreamingModule(),
 ];
 
 async function initialize() {
@@ -220,11 +224,32 @@ async function main() {
     await tradingClient.createMarketOrder(params.symbol, side, params.size ?? 0.001, { exchange, marketType });
     console.log(`[STRATEGY] Executed ${params.action} ${params.symbol} on ${exchange}`);
   };
+  const livePriceFeed = new LivePriceFeed({ useWebSocket: true });
+  try {
+    const { PostgresManager } = await import('./src/modules/base/postgres-manager.js');
+    const pm = PostgresManager.getInstance();
+    pm.registerDatabase({
+      name: 'telegram',
+      host: process.env.POSTGRES_HOST || 'localhost',
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      database: process.env.POSTGRES_DATABASE || 'mcpcrypto',
+      user: process.env.POSTGRES_USER || 'postgres',
+      password: process.env.POSTGRES_PASSWORD || 'postgres',
+    });
+    const pool = await pm.getPool('telegram');
+    messageStreamBridge.setPool(pool);
+  } catch (_) {
+    console.log(' Telegram DB not available - message-trigger strategies disabled');
+  }
+
   const executor = new ConditionalStrategyExecutor({
     dryRun: process.env.STRATEGY_DRY_RUN !== 'false',
     pollIntervalMs: 30_000,
     orderExecutor,
     balanceFetcher,
+    livePriceFeed,
+    messageStreamBridge,
+    messageTriggerProvider: () => runner.getMessageTriggerStrategiesToExecute(),
   });
   executor.start(() => runner.getStrategiesToExecute());
 

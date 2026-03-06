@@ -53,6 +53,24 @@
       "createdAt": "2026-03-06T00:00:00.000Z",
       "updatedAt": "2026-03-06T00:00:00.000Z",
       "enabled": true
+    },
+    {
+      "id": "tg-signal-long",
+      "name": "Telegram signal - go long",
+      "strategyType": "message_trigger",
+      "source": "telegram",
+      "chatIds": ["-1001234567890"],
+      "keywords": ["long", "buy", "bullish"],
+      "action": {
+        "action": "long",
+        "symbol": "BTC",
+        "exchange": "binance",
+        "marketType": "spot",
+        "size": 0.001
+      },
+      "createdAt": "2026-03-06T00:00:00.000Z",
+      "updatedAt": "2026-03-06T00:00:00.000Z",
+      "enabled": false
     }
   ],
   "updatedAt": "2026-03-06T00:00:00.000Z"

@@ -131,7 +131,26 @@ export interface TimeBasedStrategy extends BaseStrategy {
   action: StrategyAction;
 }
 
-export type Strategy = ConditionalStrategy | CorrelationStrategy | TimeBasedStrategy;
+/**
+ * MessageTriggerStrategy: "when channel X posts message matching Y, do Z"
+ * Monitors Telegram (and optionally Reddit) for new messages.
+ */
+export interface MessageTriggerStrategy extends BaseStrategy {
+  strategyType: 'message_trigger';
+  /** Source: telegram, reddit */
+  source: 'telegram' | 'reddit';
+  /** Channel/chat IDs to monitor (e.g. Telegram chat_id) */
+  chatIds?: string[];
+  /** Subreddits to monitor (when source=reddit) */
+  subreddits?: string[];
+  /** Keywords - message must contain any of these (case-insensitive) */
+  keywords?: string[];
+  /** Regex pattern to match message text */
+  regex?: string;
+  action: StrategyAction;
+}
+
+export type Strategy = ConditionalStrategy | CorrelationStrategy | TimeBasedStrategy | MessageTriggerStrategy;
 
 /**
  * Parsed output from parseNaturalLanguageStrategy

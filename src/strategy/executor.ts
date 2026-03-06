@@ -9,12 +9,15 @@
 import { PriceFetcher } from '../modules/quote/tools/PriceFetcher.js';
 import type {
   ConditionalStrategy,
+  MessageTriggerStrategy,
   Condition,
   PriceCondition,
   PercentChangeCondition,
   IndicatorRef,
 } from './types.js';
 import { getStrategyRunner } from './strategy-runner.js';
+import type { LivePriceFeed } from '../streaming/live-price-feed.js';
+import type { MessageStreamBridge } from '../streaming/message-stream-bridge.js';
 
 export interface OrderParams {
   action: 'long' | 'short';
@@ -49,6 +52,12 @@ export interface ExecutorOptions {
   strategiesPath?: string;
   /** Balance fetcher for percent_portfolio sizing */
   balanceFetcher?: BalanceFetcher;
+  /** Live price feed (WebSocket + REST) - use for faster price updates */
+  livePriceFeed?: LivePriceFeed;
+  /** Message stream bridge for message-triggered strategies (Telegram, etc.) */
+  messageStreamBridge?: MessageStreamBridge;
+  /** Provider for message-trigger strategies to check each poll */
+  messageTriggerProvider?: () => MessageTriggerStrategy[];
 }
 
 /** Simple RSI from OHLCV close prices */
@@ -78,6 +87,10 @@ export class ConditionalStrategyExecutor {
   private dryRun: boolean;
   private orderExecutor: OrderExecutor;
   private balanceFetcher: BalanceFetcher | null;
+  private livePriceFeed: LivePriceFeed | null;
+  private messageStreamBridge: MessageStreamBridge | null;
+  private messageTriggerProvider: (() => MessageTriggerStrategy[]) | null;
+  private lastMessageCheckAt = 0;
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private lastPrices: Map<string, number> = new Map();
   private priceHistory: Map<string, number[]> = new Map();
@@ -90,6 +103,9 @@ export class ConditionalStrategyExecutor {
     this.dryRun = options.dryRun ?? true;
     this.orderExecutor = options.orderExecutor ?? logOnlyExecutor;
     this.balanceFetcher = options.balanceFetcher ?? null;
+    this.livePriceFeed = options.livePriceFeed ?? null;
+    this.messageStreamBridge = options.messageStreamBridge ?? null;
+    this.messageTriggerProvider = options.messageTriggerProvider ?? null;
   }
 
   /**
@@ -113,11 +129,25 @@ export class ConditionalStrategyExecutor {
       if (strategies.length > 0) {
         this.checkAll(strategies);
       }
+      if (this.messageTriggerProvider && this.messageStreamBridge) {
+        const msgStrategies = this.messageTriggerProvider().filter((s) => s.enabled);
+        if (msgStrategies.length > 0) {
+          this.checkMessageTriggers(msgStrategies);
+        }
+      }
     };
 
     const initial = getStrategies().filter((s) => s.enabled);
+    const msgCount = this.messageTriggerProvider?.()?.filter((s) => s.enabled).length ?? 0;
+    const symbols = [...new Set(initial.flatMap((s) => [s.condition?.symbol, s.action?.symbol]).filter(Boolean))] as string[];
+    if (this.livePriceFeed && symbols.length > 0) {
+      this.livePriceFeed.subscribe(symbols);
+    }
+    if (this.messageStreamBridge) {
+      this.messageStreamBridge.start();
+    }
     console.log(
-      `[STRATEGY EXECUTOR] Starting (${initial.length} strategy/ies active), dryRun=${this.dryRun}`
+      `[STRATEGY EXECUTOR] Starting (${initial.length} price, ${msgCount} message-trigger), dryRun=${this.dryRun}, ws=${this.livePriceFeed?.isWebSocketConnected() ?? false}`
     );
 
     check(); // run immediately
@@ -131,8 +161,10 @@ export class ConditionalStrategyExecutor {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('[STRATEGY EXECUTOR] Stopped');
     }
+    this.messageStreamBridge?.stop();
+    this.livePriceFeed?.disconnect?.();
+    console.log('[STRATEGY EXECUTOR] Stopped');
   }
 
   private async checkAll(strategies: ConditionalStrategy[]): Promise<void> {
@@ -351,6 +383,10 @@ export class ConditionalStrategyExecutor {
   }
 
   private async getCurrentPrice(symbol: string): Promise<number | null> {
+    if (this.livePriceFeed) {
+      const cached = await this.livePriceFeed.getPrice(symbol);
+      if (cached != null) return cached;
+    }
     try {
       const prices = await this.priceFetcher.fetchPrices(symbol);
       const valid = prices.filter((p) => (p.spotPrice ?? p.perpPrice) != null);
@@ -359,6 +395,34 @@ export class ConditionalStrategyExecutor {
       return values.reduce((a, b) => a + b, 0) / values.length;
     } catch {
       return null;
+    }
+  }
+
+  private async checkMessageTriggers(strategies: MessageTriggerStrategy[]): Promise<void> {
+    if (!this.messageStreamBridge) return;
+    const since = new Date(this.lastMessageCheckAt || Date.now() - 60_000);
+    this.lastMessageCheckAt = Date.now();
+
+    for (const strategy of strategies) {
+      try {
+        const filter = {
+          chatIds: strategy.chatIds,
+          keywords: strategy.keywords,
+          regex: strategy.regex,
+        };
+        if (!filter.chatIds?.length && !filter.keywords?.length && !filter.regex) continue;
+
+        const messages = await this.messageStreamBridge.getMatchingMessagesSince(filter, since);
+        if (messages.length > 0) {
+          if (this.dryRun) {
+            console.log(`[STRATEGY EXECUTOR] [DRY-RUN] Message trigger for ${strategy.id}: ${messages.length} match(es)`);
+          } else {
+            await this.executeAction(strategy as unknown as ConditionalStrategy);
+          }
+        }
+      } catch (err) {
+        console.error(`[STRATEGY EXECUTOR] Error checking message strategy ${strategy.id}:`, err);
+      }
     }
   }
 

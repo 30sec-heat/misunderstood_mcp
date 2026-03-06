@@ -125,6 +125,14 @@ After installation, connect to your preferred AI client:
 - **Topic query**: Semantic search by keyword/topic
 - **Health check**: Source availability (Telegram, Reddit, semantic engine)
 
+### **Streaming / Real-time (Price & Message Monitoring)**
+- **Price WebSockets**: Binance (spot + futures) and Bybit ticker streams feed the strategy executor
+- **LivePriceFeed**: WebSocket-first price source with REST fallback for condition evaluation
+- **MessageStreamBridge**: Polls Telegram for new messages; message-trigger strategies fire when channel posts match keywords
+- **MessageTriggerStrategy**: `strategyType: 'message_trigger'` with `chatIds`, `keywords`, `regex`
+- **MCP tools**: `streaming_get_status`, `streaming_subscribe_prices`
+- See `src/streaming/README.md` for architecture
+
 ### **Strategy Management**
 - **Dashboard**: `npm run ysalis-dashboard` – list strategies, run/pause/stop, view PnL
 - **Per-strategy sizing**: fixed, percent_portfolio, risk_amount

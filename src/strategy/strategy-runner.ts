@@ -11,7 +11,7 @@ import {
   saveStrategies,
   getStrategy,
 } from './storage.js';
-import type { Strategy, ConditionalStrategy } from './types.js';
+import type { Strategy, ConditionalStrategy, MessageTriggerStrategy } from './types.js';
 
 const STATE_PATH = path.join(process.cwd(), 'strategy-state.json');
 const STRATEGIES_PATH = path.join(process.cwd(), 'strategies.json');
@@ -125,6 +125,16 @@ export class StrategyRunnerService {
     return strategies.filter(
       (s): s is ConditionalStrategy =>
         s.strategyType === 'conditional' &&
+        s.enabled &&
+        this.runningStrategyIds.has(s.id)
+    );
+  }
+
+  getMessageTriggerStrategiesToExecute(): MessageTriggerStrategy[] {
+    const strategies = loadStrategies(STRATEGIES_PATH);
+    return strategies.filter(
+      (s): s is MessageTriggerStrategy =>
+        s.strategyType === 'message_trigger' &&
         s.enabled &&
         this.runningStrategyIds.has(s.id)
     );
