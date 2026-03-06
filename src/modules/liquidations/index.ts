@@ -120,6 +120,90 @@ export class LiquidationModule extends BaseCryptoModule {
       },
       handler: this.getModuleStats.bind(this)
     });
+
+    // Coinalyze Open Interest & Liquidation tools
+    this.addTool({
+      name: 'coinalyze_oi_history',
+      description: 'Fetch historic Open Interest (OI) history for 1000+ bars from Coinalyze. Supports symbol, exchange, timeframe. Returns timestamp, open_interest, and optional OHLC.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string', description: 'Trading pair (e.g. BTCUSDT, ETH)', default: 'BTCUSDT' },
+          exchange: { type: 'string', description: 'Exchange (binance, bybit, okx, etc.)', default: 'binance' },
+          timeframe: {
+            type: 'string',
+            description: 'Candlestick interval',
+            enum: ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d'],
+            default: '1h'
+          },
+          limit: { type: 'number', description: 'Number of bars to fetch (up to 1000+)', default: 1000 }
+        },
+        required: ['symbol']
+      },
+      handler: this.coinalyzeOiHistory.bind(this)
+    });
+
+    this.addTool({
+      name: 'coinalyze_oi_change',
+      description: 'Get Open Interest (OI) change percentage over a period (e.g. 24h, 7d).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string', description: 'Trading pair (e.g. BTCUSDT)', default: 'BTCUSDT' },
+          exchange: { type: 'string', description: 'Exchange', default: 'binance' },
+          period: {
+            type: 'string',
+            description: 'Period for OI change',
+            enum: ['1h', '4h', '24h', '7d'],
+            default: '24h'
+          }
+        },
+        required: ['symbol']
+      },
+      handler: this.coinalyzeOiChange.bind(this)
+    });
+
+    this.addTool({
+      name: 'coinalyze_funding_history',
+      description: 'Fetch funding rate history from Coinalyze (if supported for symbol).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string', description: 'Trading pair (e.g. BTCUSDT)', default: 'BTCUSDT' },
+          exchange: { type: 'string', description: 'Exchange', default: 'binance' },
+          limit: { type: 'number', description: 'Number of bars', default: 500 },
+          timeframe: {
+            type: 'string',
+            description: 'Interval (1m, 5m, 15m, 1h, 4h, 1d)',
+            enum: ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d'],
+            default: '1h'
+          }
+        },
+        required: ['symbol']
+      },
+      handler: this.coinalyzeFundingHistory.bind(this)
+    });
+
+    this.addTool({
+      name: 'coinalyze_liquidation_history',
+      description: 'Fetch historic liquidation data from Coinalyze, aggregated by symbol, exchange, and time. Returns long/short volumes per interval.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          symbol: { type: 'string', description: 'Trading pair (e.g. BTCUSDT)', default: 'BTCUSDT' },
+          exchange: { type: 'string', description: 'Exchange', default: 'binance' },
+          timeframe: {
+            type: 'string',
+            description: 'Interval',
+            enum: ['1m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d'],
+            default: '1h'
+          },
+          limit: { type: 'number', description: 'Number of intervals', default: 500 }
+        },
+        required: ['symbol']
+      },
+      handler: this.coinalyzeLiquidationHistory.bind(this)
+    });
   }
 
   async initialize(): Promise<void> {
@@ -472,6 +556,109 @@ export class LiquidationModule extends BaseCryptoModule {
         message: 'Error retrieving module statistics'
       };
     }
+  }
+
+  private noCoinalyzeError() {
+    return {
+      error: 'Coinalyze API not available',
+      message: 'Set COINALYZE_API_KEY in environment to use Coinalyze tools'
+    };
+  }
+
+  public async coinalyzeOiHistory(args: any) {
+    if (!this.coinalyzeAPI) return this.noCoinalyzeError();
+    try {
+      const { symbol, exchange = 'binance', timeframe = '1h', limit = 1000 } = args;
+      const interval = CoinalyzeAPI.normalizeInterval(timeframe);
+      const bars = await this.coinalyzeAPI.getOpenInterestHistoryBulk(symbol, exchange, interval, limit, true);
+      return {
+        symbol,
+        exchange,
+        timeframe: interval,
+        count: bars.length,
+        data: bars.map((b) => ({ timestamp: b.timestamp, open_interest: b.open_interest, ...(b.high != null && { high: b.high, low: b.low, open: b.open, close: b.close }) })),
+        message: `Fetched ${bars.length} OI bars for ${symbol} (${exchange})`
+      };
+    } catch (error: any) {
+      return { symbol: args.symbol, data: [], error: error.message, message: `Failed to fetch OI history: ${error.message}` };
+    }
+  }
+
+  public async coinalyzeOiChange(args: any) {
+    if (!this.coinalyzeAPI) return this.noCoinalyzeError();
+    try {
+      const { symbol, exchange = 'binance', period = '24h' } = args;
+      const intervalMap: Record<string, string> = { '1h': '1hour', '4h': '4hour', '24h': '1hour', '7d': 'daily' };
+      const interval = intervalMap[period] || '1hour';
+      const barsNeeded = period === '7d' ? 10 : period === '24h' ? 30 : period === '4h' ? 6 : 2; // daily=7+ buffer, 1h=24+ buffer, etc
+      const bars = await this.coinalyzeAPI.getOpenInterestHistoryBulk(symbol, exchange, interval, Math.max(barsNeeded, 50), true);
+      if (bars.length < 2) return { symbol, changePercent: 0, change: 0, message: 'Insufficient OI data' };
+      const current = bars[bars.length - 1].open_interest;
+      const periodsAgo = period === '7d' ? Math.min(7, bars.length - 1) : period === '24h' ? Math.min(24, bars.length - 1) : period === '4h' ? Math.min(4, bars.length - 1) : 1;
+      const previous = bars[Math.max(0, bars.length - 1 - periodsAgo)].open_interest;
+      const change = current - previous;
+      const changePercent = previous > 0 ? (change / previous) * 100 : 0;
+      return {
+        symbol,
+        exchange,
+        period,
+        currentOI: current,
+        previousOI: previous,
+        change,
+        changePercent: Math.round(changePercent * 100) / 100,
+        message: `OI ${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}% over ${period}`
+      };
+    } catch (error: any) {
+      return { symbol: args.symbol, error: error.message, message: `Failed to get OI change: ${error.message}` };
+    }
+  }
+
+  public async coinalyzeFundingHistory(args: any) {
+    if (!this.coinalyzeAPI) return this.noCoinalyzeError();
+    try {
+      const { symbol, exchange = 'binance', limit = 500, timeframe = '1h' } = args;
+      const interval = CoinalyzeAPI.normalizeInterval(timeframe);
+      const coinalyzeSymbol = await this.coinalyzeAPI.resolveCoinalyzeSymbol(symbol, exchange);
+      const now = Math.floor(Date.now() / 1000);
+      const intervalSec = this.getCoinalyzeIntervalSeconds(interval);
+      const from = now - limit * intervalSec;
+      const results = await this.coinalyzeAPI.getFundingRateHistory([coinalyzeSymbol], interval, from, now);
+      if (!results.length || !results[0].history?.length) {
+        return { symbol, data: [], message: 'No funding rate history available' };
+      }
+      const data = results[0].history.map((h) => ({ timestamp: h.timestamp, funding_rate: h.funding_rate }));
+      return { symbol, exchange, timeframe: interval, count: data.length, data, message: `Fetched ${data.length} funding rate bars for ${symbol}` };
+    } catch (error: any) {
+      return { symbol: args.symbol, data: [], error: error.message, message: `Failed to fetch funding history: ${error.message}` };
+    }
+  }
+
+  public async coinalyzeLiquidationHistory(args: any) {
+    if (!this.coinalyzeAPI) return this.noCoinalyzeError();
+    try {
+      const { symbol, exchange = 'binance', timeframe = '1h', limit = 500 } = args;
+      const interval = CoinalyzeAPI.normalizeInterval(timeframe);
+      const data = await this.coinalyzeAPI.getLiquidationHistoryBulk(symbol, exchange, interval, limit, true);
+      return {
+        symbol,
+        exchange,
+        timeframe: interval,
+        count: data.length,
+        data,
+        message: `Fetched ${data.length} liquidation intervals for ${symbol}`
+      };
+    } catch (error: any) {
+      return { symbol: args.symbol, data: [], error: error.message, message: `Failed to fetch liquidation history: ${error.message}` };
+    }
+  }
+
+  private getCoinalyzeIntervalSeconds(interval: string): number {
+    const map: Record<string, number> = {
+      '1min': 60, '5min': 300, '15min': 900, '30min': 1800,
+      '1hour': 3600, '2hour': 7200, '4hour': 14400, '6hour': 21600, '12hour': 43200,
+      'daily': 86400
+    };
+    return map[interval] || 3600;
   }
 
   public async searchLiquidations(args: any) {

@@ -81,6 +81,35 @@ After installation, connect to your preferred AI client:
 
 ## Core Capabilities
 
+### **Technical & Order Flow**
+- **OHLCV History**: Fetch 1000+ bars with pagination (`get_ohlcv_history`) across timeframes 1m–1d
+- **Order Flow Glossary**: FVG, order blocks, BOS, CHoCH, liquidity pools, fair value gap terminology (`get_orderflow_glossary`)
+- **Fair Value Gap Detector**: Bull/bear FVG detection on price data (`technical_detect_fvg`)
+- **Correlation**: Pearson correlation between symbols for pair trading (`get_symbol_correlation`)
+
+### **Open Interest & Liquidations (Coinalyze)**
+- **OI History**: 1000+ bars of Open Interest by symbol/exchange/timeframe (`coinalyze_oi_history`)
+- **OI Change**: Percent change over 1h, 4h, 24h, 7d (`coinalyze_oi_change`)
+- **Funding History**: Funding rate time series (`coinalyze_funding_history`)
+- **Liquidation History**: Historic liquidations by symbol/exchange (`coinalyze_liquidation_history`)
+- Requires `COINALYZE_API_KEY` in `.env`
+
+### **Polymarket**
+- **Trending / by category / ending soon**: Market discovery and filtering
+- **Market details**: Full metadata, volume, liquidity, resolution
+- **Price history**: Historical prices via CLOB API
+- **User positions**: Portfolio by wallet address (Data API)
+- **Resolved events / upcoming resolutions**
+- **Market comments**: Sentiment and discussion per market
+
+### **Sentiment**
+- **Unified score**: Aggregated Telegram + Reddit (+ News) sentiment
+- **Symbol-specific**: BTC, ETH, SOL, etc. with ticker aliases
+- **Time-windowed**: 1h, 4h, 24h, 7d sentiment windows
+- **Extremes detection**: Fear/greed spike detection
+- **Topic query**: Semantic search by keyword/topic
+- **Health check**: Source availability (Telegram, Reddit, semantic engine)
+
 ### **Market Intelligence**
 - **Aave**: Lending rates, collateral analysis, yield opportunities, risk assessment
 - **DeFiLlama**: Protocol TVL, yield farming pools, DEX analytics, chain comparisons

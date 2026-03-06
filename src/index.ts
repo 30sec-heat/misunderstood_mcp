@@ -188,6 +188,10 @@ class CryptoMCPServer {
     if (redditModule && sentimentModule && sentimentModule.setRedditModule) {
       sentimentModule.setRedditModule(redditModule);
     }
+
+    if (newsModule && sentimentModule && sentimentModule.setNewsModule) {
+      sentimentModule.setNewsModule(newsModule);
+    }
     
     if (telegramModule && alphaModule && alphaModule.setTelegramModule) {
       alphaModule.setTelegramModule(telegramModule);

@@ -10,6 +10,7 @@ import express from 'express';
 import cors from 'cors';
 import { QuoteModule } from './src/modules/quote/index.js';
 import { TradingModule } from './src/modules/trading/index.js';
+import { OrderFlowModule } from './src/modules/orderflow/index.js';
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const HOST = process.env.HOST || 'localhost';
@@ -17,6 +18,7 @@ const HOST = process.env.HOST || 'localhost';
 const modules = [
   new QuoteModule(),
   new TradingModule(),
+  new OrderFlowModule(),
 ];
 
 async function initialize() {

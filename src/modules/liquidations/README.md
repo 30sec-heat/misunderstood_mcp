@@ -28,6 +28,11 @@ A comprehensive module for monitoring cryptocurrency liquidations and open inter
 - Fetches liquidation history across multiple exchanges
 - Syncs open interest data from various sources
 - Provides fallback data when WebSocket is unavailable
+- **Historic OI**: `getOpenInterestHistoryBulk()` fetches 1000+ bars with pagination
+- **Funding rate history**: `getFundingRateHistory()` for funding rate time series
+- **Liquidation history**: `getLiquidationHistoryBulk()` aggregated by symbol/exchange/time
+- **Rate limiting**: 40 req/min, automatic 429 retry and throttling
+- **Caching**: In-memory OI history cache (5 min TTL) for repeated access
 
 ### Analysis Tools (`tools/LiquidationAnalysisTool.ts`)
 - Analyzes liquidation patterns and trends
@@ -86,6 +91,17 @@ interface LiquidationModuleConfig {
   dbPath?: string;                  // Custom database path
 }
 ```
+
+## MCP Tools (Coinalyze)
+
+When `COINALYZE_API_KEY` is set, these tools are available:
+
+| Tool | Description |
+|------|-------------|
+| `coinalyze_oi_history` | Fetch 1000+ OI bars (symbol, exchange, timeframe, limit) |
+| `coinalyze_oi_change` | OI change % over period (1h, 4h, 24h, 7d) |
+| `coinalyze_funding_history` | Funding rate history |
+| `coinalyze_liquidation_history` | Historic liquidations by symbol/exchange/time |
 
 ## Data Sources
 

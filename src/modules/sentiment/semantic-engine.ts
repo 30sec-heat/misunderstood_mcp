@@ -454,6 +454,7 @@ export class SemanticSentimentEngine {
   private parseTimeRange(timeRange: string): number {
     const timeMap: { [key: string]: number } = {
       '1h': 1,
+      '4h': 4,
       '6h': 6,
       '24h': 24,
       '7d': 168,
