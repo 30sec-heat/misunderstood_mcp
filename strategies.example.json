@@ -1,0 +1,26 @@
+{
+  "strategies": [
+    {
+      "id": "btc-100k-long",
+      "name": "BTC above 100k - go long",
+      "strategyType": "conditional",
+      "condition": {
+        "type": "price",
+        "operator": "gt",
+        "value": 100000,
+        "symbol": "BTC"
+      },
+      "action": {
+        "action": "long",
+        "symbol": "BTC",
+        "exchange": "binance",
+        "marketType": "spot",
+        "size": 0.001
+      },
+      "createdAt": "2026-03-06T00:00:00.000Z",
+      "updatedAt": "2026-03-06T00:00:00.000Z",
+      "enabled": true
+    }
+  ],
+  "updatedAt": "2026-03-06T00:00:00.000Z"
+}

@@ -31,6 +31,7 @@ import { ForecastingModule } from './modules/forecasting/index.js';
 import { AaveModule } from './modules/aave/index.js';
 import { LiquidationModule } from './modules/liquidations/index.js';
 import { KnowledgeModule } from './modules/knowledge/index.js';
+import { TradingModule } from './modules/trading/index.js';
 // DatabaseManager removed - using PostgreSQL directly
 import { websocketManager } from './modules/base/websocket-manager.js';
 
@@ -88,6 +89,7 @@ class CryptoMCPServer {
       { name: 'aave', class: AaveModule },
       { name: 'liquidations', class: LiquidationModule },
       { name: 'knowledge', class: KnowledgeModule },
+      { name: 'trading', class: TradingModule },
     ];
 
     // Store module classes for lazy loading
@@ -142,7 +144,7 @@ class CryptoMCPServer {
       'telegram', 'polymarket', 'sentiment', 'news', 'reddit',
       'dexscreener', 'aave', 'analysis', 'defillama', 'deribit',
       'chart', 'econ_data', 'performance', 'alpha', 'quote',
-      'forecasting', 'liquidations'
+      'forecasting', 'liquidations', 'trading'
     ];
     
     // Initializing essential modules

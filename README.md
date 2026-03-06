@@ -13,6 +13,39 @@ This is an MCP server tailored to crypto use - completely free and open source. 
 
 **TLDR:** Run the backend, npm install, create the db with the script and you're good to go.
 
+### 🤖 AI Trading Agent (CLI + MCP)
+
+Turn natural language into automated trading strategies. Talk to the agent, describe conditions like *"bitcoin goes up when xyz... take a long"*, and it will parse, save, and execute.
+
+**Quick start:**
+
+```bash
+# Interactive chat with MCP tools
+npm run agent
+
+# With backend API (recommended - faster)
+npm run server &          # Start HTTP API on :3000
+npm run agent -- -b http://localhost:3000
+
+# Create strategy from natural language
+npm run agent -- -m strategy "when BTC goes above 100k I want to go long"
+
+# Run strategy executor (dry-run by default)
+npm run agent -- -m execute -d
+
+# Automated backend (polls strategies, executes when conditions met)
+npm run automated          # Dry-run (safe)
+npm run automated:live     # Live orders (requires API keys)
+```
+
+**CLI options:** `-m chat|strategy|execute` `-e binance|bybit|both` `-k spot|futures|both` `-d` (dry-run) `-b <backend-url>`
+
+**Exchanges:** Binance & Bybit (spot + futures). Set `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, `BYBIT_API_KEY`, `BYBIT_SECRET_KEY` in `.env`.
+
+**Strategy parsing:** Requires `OPENAI_API_KEY` for natural language → structured strategy conversion.
+
+**Manual strategies:** Copy `strategies.example.json` to `strategies.json` and edit. Set `enabled: true` for strategies to run.
+
 ## Quick Start
 
 ### Installation

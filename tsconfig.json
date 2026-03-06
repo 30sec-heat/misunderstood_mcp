@@ -16,6 +16,6 @@
     "emitDecoratorMetadata": true,
     "downlevelIteration": true
   },
-  "include": ["src/**/*", "server.ts"],
+  "include": ["src/**/*", "cli/**/*", "server.ts"],
   "exclude": ["node_modules", "dist"]
 }

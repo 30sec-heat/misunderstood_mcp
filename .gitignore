@@ -133,6 +133,7 @@ Thumbs.db
 
 # Project specific
 cursor.deb
+strategies.json
 aave-test-output.txt
 *.test-output.txt
 
