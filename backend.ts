@@ -26,6 +26,7 @@ import { OrderFlowModule } from './src/modules/orderflow/index.js';
 import { EarningsFeedModule } from './src/modules/earnings/index.js';
 import { MassiveModule } from './src/modules/massive/index.js';
 import { BreakingNewsModule } from './src/modules/news/breaking-news.js';
+import { ConfigModule } from './src/modules/config/index.js';
 
 // Service status interface
 interface ServiceStatus {
@@ -88,6 +89,7 @@ export class CryptoBackend {
         { class: EarningsFeedModule, name: 'earningsfeed' },
         { class: MassiveModule, name: 'massive' },
         { class: BreakingNewsModule, name: 'breaking_news' },
+        { class: ConfigModule, name: 'config' },
       ];
 
       // Initialize basic modules first

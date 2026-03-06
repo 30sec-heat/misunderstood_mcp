@@ -37,6 +37,7 @@ import { EarningsFeedModule } from './src/modules/earnings/index.js';
 import { MassiveModule } from './src/modules/massive/index.js';
 import { BreakingNewsModule } from './src/modules/news/breaking-news.js';
 import { ResearchModule } from './src/modules/research/index.js';
+import { ConfigModule } from './src/modules/config/index.js';
 
 // Base module interface
 export interface CryptoModule {
@@ -100,6 +101,7 @@ class SocketMCPServer {
       { name: 'earningsfeed', class: EarningsFeedModule },
       { name: 'massive', class: MassiveModule },
       { name: 'breaking_news', class: BreakingNewsModule },
+      { name: 'config', class: ConfigModule },
     ];
 
     // Initialize basic modules first

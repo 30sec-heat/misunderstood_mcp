@@ -164,6 +164,7 @@ function printBanner(config: AgentConfig): void {
     console.log(`Commands:
   /tools              List available MCP tools
   /call <name> [json] Call a tool (e.g. /call get_comprehensive_quotes '{"symbol":"BTC"}')
+  /set <KEY> <value>  Set env var / API key (e.g. /set BINANCE_API_KEY abc123)
   /strategy <text>    Parse natural language into a strategy (e.g. "when BTC > 100k go long")
   /strategies         List saved strategies
   /save <id>          Save last parsed strategy with given id
@@ -171,6 +172,7 @@ function printBanner(config: AgentConfig): void {
   /exit or Ctrl+C     Exit
 
 Multi-line input: Enter empty line to send your message.
+Set API key: "set my Binance API key to abc123" or "add OPENAI_API_KEY sk-xxx"
 Strategy examples: "bitcoin goes up when xyz, take a long" | "when ETH drops 5% go short"
 `);
   }
@@ -248,6 +250,15 @@ async function runChatMode(config: AgentConfig, toolRunner: ToolRunner): Promise
             console.log(`Ysalis> Saved strategy as "${id}"`);
           } else {
             console.log('Ysalis> No strategy to save. Use /strategy <text> first.');
+          }
+          break;
+        }
+        case '/set': {
+          const setMatch = arg.match(/^(\S+)\s+(.+)$/s);
+          if (setMatch) {
+            await handleSetEnvVar(toolRunner, setMatch[1].trim(), setMatch[2].trim());
+          } else {
+            console.log('Ysalis> Usage: /set <KEY> <value> (e.g. /set BINANCE_API_KEY abc123)');
           }
           break;
         }
@@ -351,6 +362,62 @@ async function handleStrategyCommand(arg: string, config: AgentConfig): Promise<
   }
 }
 
+async function handleSetEnvVar(toolRunner: ToolRunner, key: string, value: string): Promise<void> {
+  try {
+    const keyNorm = key.toUpperCase().replace(/\s+/g, '_');
+    const result = await toolRunner.callTool('config_set_env_var', { key: keyNorm, value });
+    const content = result?.content?.[0]?.text;
+    const data = typeof content === 'string' ? (() => { try { return JSON.parse(content); } catch { return { text: content }; } })() : result;
+    if (data?.success) {
+      console.log(`Ysalis> ${data.message || 'Set ' + keyNorm}`);
+    } else {
+      console.log('Ysalis>', data?.error || JSON.stringify(result));
+    }
+  } catch (err) {
+    console.log('Ysalis> Error:', (err as Error).message);
+  }
+}
+
+/** Parse "set X to Y" / "my binance api key is X" style messages into key/value */
+function parseEnvSetFromMessage(message: string): { key: string; value: string } | null {
+  const lower = message.toLowerCase().trim();
+  const serviceToKey: Record<string, string> = {
+    binance: 'BINANCE_API_KEY',
+    bybit: 'BYBIT_API_KEY',
+    openai: 'OPENAI_API_KEY',
+    coinalyze: 'COINALYZE_API_KEY',
+    brave: 'BRAVE_SEARCH_API_KEY',
+    serper: 'SERPER_API_KEY',
+    earnings: 'EARNINGSFEED_API_KEY',
+    massive: 'MASSIVE_API_KEY',
+    polygon: 'MASSIVE_API_KEY',
+    news: 'CRYPTO_NEWS_API_KEY',
+    deribit: 'DERIBIT_CLIENT_ID',
+  };
+
+  // "set BINANCE_API_KEY to abc" or "set BINANCE_API_KEY=abc"
+  let m = message.match(/set\s+([A-Za-z0-9_]+)\s*(?:to|=)\s*(.+)/i);
+  if (m) return { key: m[1].toUpperCase(), value: m[2].trim() };
+
+  // "BINANCE_API_KEY = abc" or "BINANCE_API_KEY: abc"
+  m = message.match(/([A-Za-z0-9_]+)\s*[:=]\s*(.+)/);
+  if (m && /_KEY|_SECRET|API_ID|API_HASH/.test(m[1])) return { key: m[1].toUpperCase(), value: m[2].trim() };
+
+  // "my binance api key is abc123" or "add my openai key: sk-xxx"
+  m = lower.match(/(?:my|add)\s+(binance|bybit|openai|coinalyze|brave|serper|earnings|massive|polygon|news|deribit)\s+(?:api\s+)?key\s*(?:is|:|=)?\s*(.+)/i);
+  if (m) {
+    const svc = m[1].toLowerCase();
+    const key = serviceToKey[svc] || (svc.toUpperCase() + '_API_KEY');
+    return { key, value: m[2].trim() };
+  }
+
+  // "add OPENAI_API_KEY sk-xxx"
+  m = message.match(/add\s+([A-Za-z0-9_]+)\s+(.+)/i);
+  if (m) return { key: m[1].toUpperCase(), value: m[2].trim() };
+
+  return null;
+}
+
 async function listStrategies(): Promise<void> {
   try {
     const strategies = loadStrategies();
@@ -377,6 +444,18 @@ async function handleUserMessage(
   const lower = message.toLowerCase();
   const symbolMatch = message.match(/\b(BTC|ETH|SOL|ADA|XRP|DOGE|AVAX|LINK|DOT|MATIC|USDT|USDC)\b/i);
   const symbol = symbolMatch?.[1] || 'BTC';
+
+  // Env/API key: "set my binance api key to xyz", "add OPENAI_API_KEY sk-xxx"
+  const envSet = parseEnvSetFromMessage(message);
+  if (envSet) {
+    try {
+      process.stdout.write('Ysalis> ');
+      await handleSetEnvVar(toolRunner, envSet.key, envSet.value);
+    } catch (err) {
+      console.log('Ysalis> Error:', (err as Error).message);
+    }
+    return;
+  }
 
   // Strategy-like: "bitcoin goes up when...", "take a long", "I notice...", "would be nice to"
   const strategyKeywords = ['goes up', 'goes down', 'take a long', 'go long', 'go short', 'when ', 'if ', 'above ', 'below ', 'would be nice', 'i notice', 'i want to'];

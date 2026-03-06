@@ -49,6 +49,8 @@ npm run automated:live         # Live orders (requires API keys)
 
 **Exchanges:** Binance & Bybit (spot + futures). Set `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, `BYBIT_API_KEY`, `BYBIT_SECRET_KEY` in `.env`.
 
+**Set API keys via chat:** Say "set my Binance API key to abc123", "add OPENAI_API_KEY sk-xxx", or use `/set BINANCE_API_KEY abc123`. Uses `config_set_env_var` MCP tool. Restart server to pick up changes.
+
 **Strategy parsing:** Requires `OPENAI_API_KEY` for natural language → structured strategy conversion.
 
 **Manual strategies:** Copy `strategies.example.json` to `strategies.json` and edit. Set `enabled: true` for strategies to run.
@@ -137,6 +139,10 @@ After installation, connect to your preferred AI client:
 - **Token metadata**: `solana_get_token_metadata`, `solana_search_token_by_name`
 - **Swap quote**: `solana_get_swap_quote` – Jupiter API (no execution)
 - **Social mentions**: `social_search_coin_mentions` – coin mentions (RSS, web search; Twitter via Brave/Serper if keys set)
+
+### **Config**
+- **config_set_env_var**: Add or update API keys / env vars in `.env` by speaking to the agent (e.g. "set my Binance API key to xyz")
+- **config_list_allowed_keys**: List which keys can be set (API keys, optional config – excludes DB/system vars)
 
 ### **Financial Data (TradFi)**
 - **Earnings Feed API**: SEC filings, insider transactions, 13F holdings, company profiles (`earningsfeed_*` tools)

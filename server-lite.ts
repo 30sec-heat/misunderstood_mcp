@@ -12,6 +12,7 @@ import { QuoteModule } from './src/modules/quote/index.js';
 import { TradingModule } from './src/modules/trading/index.js';
 import { OrderFlowModule } from './src/modules/orderflow/index.js';
 import { ResearchModule } from './src/modules/research/index.js';
+import { ConfigModule } from './src/modules/config/index.js';
 import { getStrategyRunner } from './src/strategy/strategy-runner.js';
 import { PriceFetcher } from './src/modules/quote/tools/PriceFetcher.js';
 import { ConditionalStrategyExecutor } from './src/strategy/executor.js';
@@ -25,6 +26,7 @@ const modules = [
   new TradingModule(),
   new OrderFlowModule(),
   new ResearchModule(),
+  new ConfigModule(),
 ];
 
 async function initialize() {
