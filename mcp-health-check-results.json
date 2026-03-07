@@ -1,0 +1,78 @@
+{
+  "timestamp": "2026-03-06T21:22:33.214Z",
+  "summary": {
+    "total": 6,
+    "healthy": 3,
+    "warnings": 3,
+    "critical": 0
+  },
+  "overall_status": "warning",
+  "results": [
+    {
+      "component": "Server Startup",
+      "status": "healthy",
+      "message": "Server started with 106 tools loaded",
+      "duration": 1774,
+      "details": {
+        "tools_loaded": 106
+      }
+    },
+    {
+      "component": "Tool Availability",
+      "status": "healthy",
+      "message": "106 tools available via MCP protocol",
+      "duration": 3,
+      "details": {
+        "tool_count": 106
+      }
+    },
+    {
+      "component": "Tool: Sentiment health check",
+      "status": "warning",
+      "message": "Tool error: Tool not found: sentiment_health_check",
+      "duration": 2,
+      "details": {
+        "tool_name": "sentiment_health_check",
+        "error": {
+          "code": -32603,
+          "message": "Tool not found: sentiment_health_check"
+        }
+      }
+    },
+    {
+      "component": "Tool: News search",
+      "status": "healthy",
+      "message": "Tool executed successfully",
+      "duration": 1285,
+      "details": {
+        "tool_name": "news_search"
+      }
+    },
+    {
+      "component": "Tool: DeFi protocols",
+      "status": "warning",
+      "message": "Tool error: Tool not found: defillama_get_protocols",
+      "duration": 0,
+      "details": {
+        "tool_name": "defillama_get_protocols",
+        "error": {
+          "code": -32603,
+          "message": "Tool not found: defillama_get_protocols"
+        }
+      }
+    },
+    {
+      "component": "Tool: Nonexistent tool handling",
+      "status": "warning",
+      "message": "Tool error: Tool not found: nonexistent_tool",
+      "duration": 2,
+      "details": {
+        "tool_name": "nonexistent_tool",
+        "error": {
+          "code": -32603,
+          "message": "Tool not found: nonexistent_tool"
+        }
+      }
+    }
+  ]
+}

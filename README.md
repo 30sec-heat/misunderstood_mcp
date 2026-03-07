@@ -1,344 +1,290 @@
 # MCP Crypto Server
 
-> Meet **Miss Understood** - the elite MCP server for crypto intelligence
+> Professional MCP server providing comprehensive cryptocurrency intelligence, DeFi analytics, and trading tools
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
+[![MCP](https://img.shields.io/badge/MCP-Compatible-blue.svg)](https://modelcontextprotocol.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**[📱 Join Community](https://t.me/+f6szsd7zYqdlZDIy)** | Get help, share tips, and connect with other Miss Understood users!
+A comprehensive **Model Context Protocol (MCP) server** providing 106+ cryptocurrency tools including market data, DeFi intelligence, social sentiment analysis, and trading insights. Connect to **Claude Desktop**, **Cursor IDE**, or any MCP-compatible client for advanced crypto analysis.
 
-This is an MCP server tailored to crypto use - completely free and open source. We're gonna dominate the crypto AI universe by delivering the elite MCP server for all, and not gate intelligence behind a 40k token stake paywall.
+**🎯 Pure MCP Server** - No chat interface, just powerful tools for your AI client.
 
-**TLDR:** Run the backend, npm install, create the db with the script and you're good to go.
-
-### 🤖 Ysalis - AI Trading Agent (CLI + MCP)
-
-Ysalis is the CLI-based AI trading agent. Turn natural language into automated trading strategies. Talk to it, describe conditions like *"bitcoin goes up when xyz... take a long"*, and it will parse, save, and execute.
-
-**Quick start:**
-
-```bash
-# First run: guided setup (AI model, exchange, API keys, Telegram)
-npm run ysalis
-
-# Re-run setup anytime
-npm run ysalis -- --setup
-
-# Interactive chat with MCP tools
-npm run ysalis
-# or: npm run agent
-
-# With backend API (recommended - faster)
-npm run server &               # Start HTTP API on :3000
-npm run ysalis -- -b http://localhost:3000
-
-# Strategy dashboard - run/pause strategies, see PnL
-npm run ysalis-dashboard
-# or: npm run strategy-dashboard
-
-# Create strategy from natural language
-npm run ysalis -- -m strategy "when BTC goes above 100k I want to go long"
-
-# Run strategy executor (dry-run by default)
-npm run ysalis -- -m execute -d
-
-# Automated backend (polls strategies, executes when conditions met)
-npm run automated              # Dry-run (safe)
-npm run automated:live         # Live orders (requires API keys)
-```
-
-**CLI options:** `-m chat|strategy|execute` `-e binance|bybit|both` `-k spot|futures|both` `-d` (dry-run) `-b <backend-url>`
-
-**How Ysalis calls MCP tools:** The agent uses heuristic matching (e.g. "price" → quote tool, "strategy keywords" → NL parser) and explicit `/call <tool> <args>`. When used as an MCP server from Cursor/Claude, those clients perform chain-of-thought: the LLM sees available tools, reasons about the user query, and decides which tools to call (often chaining multiple calls). For full autonomous tool chaining from the CLI, use `--backend-url` with a client that supports tool use.
-
-**Exchanges:** Binance & Bybit (spot + futures). Set `BINANCE_API_KEY`, `BINANCE_SECRET_KEY`, `BYBIT_API_KEY`, `BYBIT_SECRET_KEY` in `.env`.
-
-**Set API keys via chat:** Say "set my Binance API key to abc123", "add OPENAI_API_KEY sk-xxx", or use `/set BINANCE_API_KEY abc123`. Uses `config_set_env_var` MCP tool. Restart server to pick up changes.
-
-**Strategy parsing:** Requires `OPENAI_API_KEY` for natural language → structured strategy conversion.
-
-**Manual strategies:** Copy `strategies.example.json` to `strategies.json` and edit. Set `enabled: true` for strategies to run.
-
-## Quick Start
+## 🚀 Quick Start
 
 ### Installation
 
-The `install.sh` script automatically:
-- Installs Node.js dependencies
-- Sets up PostgreSQL database and creates required tables
-- Configures environment variables
-- Initializes the knowledge base with semantic search
-- Sets up MCP client configurations
+```bash
+# Clone and setup
+git clone <repository-url>
+cd mcp-crypto-server
 
+# One-command installation (installs dependencies, sets up database, configures MCP)
 chmod +x install.sh
 ./install.sh
+```
 
 ### MCP Client Setup
 
 After installation, connect to your preferred AI client:
 
-- **Cursor IDE**: Use `mcp-config-cursor.json`
-- **Claude Desktop**: Use `mcp-config-claude-desktop.json`  
-- **ChatGPT Desktop**: Use `mcp-config-chatgpt.json`
-- **Other MCP Clients**: Use `mcp-config-generic.json`
+**Cursor IDE:**
+```json
+// Add to your Cursor settings (Cmd/Ctrl + Shift + P → "Preferences: Open User Settings (JSON)")
+{
+  "mcp.servers": {
+    "crypto": {
+      "command": "tsx",
+      "args": ["/absolute/path/to/mcp-crypto-server/mcp-server-socket.ts"],
+      "env": {}
+    }
+  }
+}
+```
 
-📖 **Detailed setup instructions**: See `MCP-SETUP-GUIDE.md`
+**Claude Desktop:**
+```json
+// Add to ~/.claude/claude_desktop_config.json (or %APPDATA%\Claude\claude_desktop_config.json on Windows)
+{
+  "mcpServers": {
+    "crypto": {
+      "command": "tsx",
+      "args": ["/absolute/path/to/mcp-crypto-server/mcp-server-socket.ts"]
+    }
+  }
+}
+```
 
-### Requirements & Setup
+**Other MCP Clients:**
+The server uses stdio transport and is compatible with any MCP client. Use the command `tsx mcp-server-socket.ts` in the project directory.
 
-**Required:** Node.js 18+, PostgreSQL 12+, 2GB+ RAM, 2GB+ disk space
+📖 **Detailed setup instructions**: See [MCP-SETUP-GUIDE.md](MCP-SETUP-GUIDE.md)
 
-**Recommended:** Run locally and let backend run continuously for real-time intelligence gathering.
+## 🛠️ Core MCP Tools (106 Available)
 
-**Optional:** Telegram account for social intelligence features
+### **Market Data & Pricing (15+ tools)**
+- `get_comprehensive_quotes` - Real-time prices across exchanges
+- `get_ohlcv_history` - Historical OHLCV data with pagination
+- `get_symbol_correlation` - Correlation analysis between trading pairs
+- `pyth_get_price_feeds` - Pyth Network price feeds
+- `quote_get_listings` - Exchange listings and market data
 
-## Core Capabilities
+### **Technical Analysis (12+ tools)**
+- `technical_detect_fvg` - Fair Value Gap detection
+- `get_orderflow_glossary` - Order flow terminology and concepts
+- `analysis_comprehensive_forecast` - Multi-factor forecasting
+- `chart_get_technical_analysis` - Technical indicators and patterns
 
-### **Technical & Order Flow**
-- **OHLCV History**: Fetch 1000+ bars with pagination (`get_ohlcv_history`) across timeframes 1m–1d
-- **Order Flow Glossary**: FVG, order blocks, BOS, CHoCH, liquidity pools, fair value gap terminology (`get_orderflow_glossary`)
-- **Fair Value Gap Detector**: Bull/bear FVG detection on price data (`technical_detect_fvg`)
-- **Correlation**: Pearson correlation between symbols for pair trading (`get_symbol_correlation`)
+### **DeFi Intelligence (20+ tools)**
+- **Aave (8 tools)**: Lending rates, collateral analysis, yield opportunities
+- **DeFiLlama (6 tools)**: Protocol TVL, yield farming, DEX analytics  
+- **Deribit (5 tools)**: Options flow, volatility analysis, Greeks calculations
+- **DexScreener (4 tools)**: Token analysis, pair discovery, liquidity tracking
 
-### **Open Interest & Liquidations (Coinalyze)**
-- **OI History**: 1000+ bars of Open Interest by symbol/exchange/timeframe (`coinalyze_oi_history`)
-- **OI Change**: Percent change over 1h, 4h, 24h, 7d (`coinalyze_oi_change`)
-- **Funding History**: Funding rate time series (`coinalyze_funding_history`)
-- **Liquidation History**: Historic liquidations by symbol/exchange (`coinalyze_liquidation_history`)
-- Requires `COINALYZE_API_KEY` in `.env`
+### **Social Sentiment (15+ tools)**
+- `telegram_summarize_chat_messages` - Summarize chat activity
+- `telegram_search_messages_by_subject` - RAG-style message search
+- `sentiment_get_unified_score` - Cross-platform sentiment analysis
+- `reddit_search_discussions` - Reddit sentiment and discussions
+- `social_search_coin_mentions` - Cross-platform social mentions
 
-### **Polymarket**
-- **Search markets / check odds**: `polymarket_search_markets`, `polymarket_check_odds` – "check what odds for xyz", search by topic
-- **Trending / by category / ending soon**: Market discovery and filtering
-- **Market details**: Full metadata, volume, liquidity, resolution
-- **Price history**: Historical prices via CLOB API
-- **User positions**: Portfolio by wallet address (Data API)
-- **Resolved events / upcoming resolutions**
-- **Market comments**: Sentiment and discussion per market
+### **Polymarket (8 tools)**
+- `polymarket_search_markets` - Find prediction markets
+- `polymarket_get_trending_markets` - Trending markets by volume
+- `polymarket_get_markets_by_category` - Filter by category
+- `polymarket_get_ending_soon` - Markets ending soon
 
-### **Telegram**
-- **Summarize chat**: `telegram_summarize_chat_messages` – summarize last N messages of a chat
-- **Search by subject**: `telegram_search_messages_by_subject` – e.g. "what happened in Iran last 24 hrs" (RAG-style)
-- **Summarize by topic**: `telegram_summarize_recent_by_topic` – search + AI summary
+### **Open Interest & Liquidations (8 tools)**
+- `coinalyze_oi_history` - Open Interest time series
+- `coinalyze_liquidation_history` - Historical liquidations
+- `coinalyze_funding_history` - Funding rate analysis
+- `liquidation_get_recent` - Real-time liquidation tracking
 
-### **Sentiment**
-- **Unified score**: Aggregated Telegram + Reddit (+ News) sentiment
-- **Symbol-specific**: BTC, ETH, SOL, etc. with ticker aliases
-- **Time-windowed**: 1h, 4h, 24h, 7d sentiment windows
-- **Extremes detection**: Fear/greed spike detection
-- **Topic query**: Semantic search by keyword/topic
-- **Health check**: Source availability (Telegram, Reddit, semantic engine)
+### **Research & Knowledge (10+ tools)**
+- `research_search` - Web + database unified search
+- `knowledge_search_all` - Search across all data sources
+- `news_search` - News aggregation and analysis
+- `breaking_news_get_latest` - Breaking news alerts
 
-### **Streaming / Real-time (Price & Message Monitoring)**
-- **Price WebSockets**: Binance (spot + futures) and Bybit ticker streams feed the strategy executor
-- **LivePriceFeed**: WebSocket-first price source with REST fallback for condition evaluation
-- **MessageStreamBridge**: Polls Telegram for new messages; message-trigger strategies fire when channel posts match keywords
-- **MessageTriggerStrategy**: `strategyType: 'message_trigger'` with `chatIds`, `keywords`, `regex`
-- **MCP tools**: `streaming_get_status`, `streaming_subscribe_prices`
-- See `src/streaming/README.md` for architecture
+### **Solana Ecosystem (8 tools)**
+- `solana_get_token_metadata` - Token information
+- `solana_search_token_by_name` - Token discovery
+- `solana_get_swap_quote` - Jupiter swap quotes
+- `solana_get_token_price_history` - Historical price data
 
-### **Strategy Management**
-- **Dashboard**: `npm run ysalis-dashboard` – list strategies, run/pause/stop, view PnL
-- **Per-strategy sizing**: fixed, percent_portfolio, risk_amount
-- **Stops & targets**: price, percent, trailing, indicator-based (e.g. RSI exit)
-- **API**: GET/POST `/strategies`, `/strategies/:id/run`, `/pause`, `/stop`
+### **Configuration & Utilities (6 tools)**
+- `config_set_env_var` - Set API keys and environment variables
+- `config_list_allowed_keys` - List configurable parameters
+- `streaming_start_price_feed` - Real-time data streams
 
-### **Research & Search**
-- **research_search**: Web (Brave/Serper) + database – search online and internal sources
-- **knowledge_search_all**: Unified search across knowledge, Telegram, Reddit, Polymarket, strategies
+## 📊 Data Sources
 
-### **Solana**
-- **Token metadata**: `solana_get_token_metadata`, `solana_search_token_by_name`
-- **Swap quote**: `solana_get_swap_quote` – Jupiter API (no execution)
-- **Social mentions**: `social_search_coin_mentions` – coin mentions (RSS, web search; Twitter via Brave/Serper if keys set)
+- **Exchanges**: Binance, Bybit (spot + futures)
+- **DeFi**: Aave, DeFiLlama, Uniswap, PancakeSwap
+- **Social**: Telegram, Reddit, Twitter (via APIs)
+- **News**: RSS feeds, CryptoNews API, TradFi sources
+- **On-chain**: Solana, Ethereum data
+- **Derivatives**: Deribit options, Coinalyze metrics
 
-### **Config**
-- **config_set_env_var**: Add or update API keys / env vars in `.env` by speaking to the agent (e.g. "set my Binance API key to xyz")
-- **config_list_allowed_keys**: List which keys can be set (API keys, optional config – excludes DB/system vars)
+## 🔧 Requirements
 
-### **Financial Data (TradFi)**
-- **Earnings Feed API**: SEC filings, insider transactions, 13F holdings, company profiles (`earningsfeed_*` tools)
-- **Massive API**: Options quotes, snapshots, contracts, stock OHLC (`massive_*` tools)
-- **Crypto News API**: Breaking news, search by symbol (`news_breaking_crypto`, `news_search_crypto`)
+- **Node.js** 18+
+- **PostgreSQL** 12+
+- **2GB+ RAM**
+- **2GB+ disk space**
 
-### **Market Intelligence**
-- **Aave**: Lending rates, collateral analysis, yield opportunities, risk assessment
-- **DeFiLlama**: Protocol TVL, yield farming pools, DEX analytics, chain comparisons
-- **Deribit**: Options flow, volatility analysis, Greeks calculations, risk metrics
-- **DexScreener**: Token analysis, pair discovery, liquidity tracking, new token alerts
-- **Liquidations**: Real-time liquidation tracking, risk analysis, market impact assessment
+## 📁 Project Structure
 
-### **Social Intelligence**
-- **Telegram**: Monitor channels, sentiment analysis, alpha discovery, trend detection
-- **Reddit**: Subreddit monitoring, discussion analysis, community sentiment
-- **News**: RSS feeds, TradFi news, crypto news aggregation, semantic search
-- **Sentiment**: Cross-platform sentiment analysis, semantic search, trend correlation
+```
+mcp-crypto-server/
+├── src/
+│   ├── modules/           # Core MCP modules
+│   │   ├── aave/         # Aave DeFi tools
+│   │   ├── deribit/      # Options & derivatives
+│   │   ├── sentiment/    # Social sentiment analysis
+│   │   ├── telegram/     # Telegram integration
+│   │   └── ...
+│   ├── base/             # Base classes and utilities
+│   └── streaming/        # Real-time data streams
+├── knowledge/            # Document storage (auto-indexed)
+├── test/                 # Test utilities
+├── scripts/              # Setup and maintenance scripts
+├── mcp-server-socket.ts  # Main MCP server entry point
+└── install.sh           # One-command setup
+```
 
-### **Technical Analysis**
-- **Chart Analysis**: Technical indicators, pattern recognition, multi-timeframe analysis
-- **Forecasting**: ML-powered price predictions, volatility forecasting, risk modeling
-- **Performance**: Portfolio tracking, performance analytics, risk metrics
+## 🚦 Usage Examples
 
-### **Knowledge Base**
-Drop files in `knowledge/` folder for instant semantic search across your research, strategies, and analysis
+Once connected to your MCP client (Cursor, Claude Desktop, etc.), you can use natural language queries:
 
-## Project Structure
+**Market Analysis:**
+- *"What's the current BTC price and sentiment across exchanges?"*
+- *"Show me ETH options flow and volatility on Deribit"*
+- *"Find correlation between SOL and BTC over the last week"*
+- *"Get comprehensive quotes for the top 10 cryptocurrencies"*
 
-- `install.sh` - One-command installation
-- `mcp-config-*.json` - MCP client configurations  
-- `knowledge/` - Your research files (auto-indexed)
-- `src/modules/` - Core modules: aave, deribit, sentiment, telegram, etc.
-- `test/` - Tests and utilities
+**DeFi Intelligence:**
+- *"What are the best yield opportunities on Aave right now?"*
+- *"Show me TVL changes across major DeFi protocols this month"*
+- *"Find new token pairs with high liquidity on DEXs"*
+- *"Compare lending rates across different DeFi protocols"*
 
-## Usage
+**Social Sentiment & Prediction Markets:**
+- *"What's the sentiment around Ethereum staking this week?"*
+- *"Summarize recent discussions about Bitcoin ETFs"*
+- *"Find trending prediction markets on Polymarket"*
+- *"What are crypto communities saying about the next Fed meeting?"*
 
-Just need to run the backend - the AI modules will boot the MCP automatically when connected:
+**Research & Analysis:**
+- *"Search for recent news about crypto regulatory changes"*
+- *"Find information about upcoming token unlocks"*
+- *"Analyze liquidation patterns for major cryptocurrencies"*
+- *"Get a comprehensive forecast for Bitcoin price movement"*
 
-./start-all.sh
+**Solana Ecosystem:**
+- *"Find information about a specific Solana token"*
+- *"Get swap quotes for SOL to USDC"*
+- *"What's the social sentiment around new Solana projects?"*
 
-**Check Connection:** In Cursor, go to settings and check MCP parameters to verify connection status.
+## ⚙️ Configuration
 
-**Example Queries:**
-- *"What's the sentiment around Ethereum staking this week from my monitored channels?"*
-- *"How have people been reacting to this news?"*
-- *"What do bitcoin options say about the new risk of the Bilateral China - USA trade talks?"*
-- *"Find me yield opps to farm on AAVE"*
-- *"Where is this guy getting liquidated on chain?"*
+### Environment Variables
 
-## Configuration
+Create a `.env` file with your API keys:
 
-**Auto-configured:** Database, MCP API keys, environment variables via installer
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@localhost/crypto_db
 
-**Telegram Setup:** Run `npx tsx utils/telegram-auth.ts` and follow prompts for social intelligence
+# Exchange APIs (optional - for enhanced data)
+BINANCE_API_KEY=your_binance_key
+BINANCE_SECRET_KEY=your_binance_secret
+BYBIT_API_KEY=your_bybit_key
+BYBIT_SECRET_KEY=your_bybit_secret
 
-**Optional APIs:** Add Binance/Bybit keys to `.env` for enhanced data access
+# Data Provider APIs
+COINALYZE_API_KEY=your_coinalyze_key
+EARNINGSFEED_API_KEY=your_earningsfeed_key
+MASSIVE_API_KEY=your_polygon_key
+CRYPTO_NEWS_API_KEY=your_news_key
 
-## Knowledge Base
+# Search APIs
+BRAVE_SEARCH_API_KEY=your_brave_key
+SERPER_API_KEY=your_serper_key
 
-**Supported:** `.txt`, `.md`, `.csv`, `.json`, `.pdf` files in `knowledge/` directory
+# AI APIs (for enhanced features)
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_claude_key
+```
 
-**Auto-indexed:** Drop files → instant semantic search across all your research
+### Telegram Setup (Optional)
 
+For social intelligence features:
 
-## Troubleshooting
+```bash
+npm run setup-telegram
+# Follow the prompts to authenticate
+```
 
-**Node.js:** Ensure version 18+ (`node --version`)
-**PostgreSQL:** Check running (`pg_isready`) 
-**Permissions:** `chmod +x install.sh`
-**Database:** `npm run test-connection`
-**Telegram:** Re-run `npx tsx utils/telegram-auth.ts`
-**Modules:** `npm install && npm run build`
+## 🧪 Testing
 
-**Help:** Check `logs/` directory, report issues on GitHub
+```bash
+# Test database connection
+npm run test-connection
 
-## Contributing
+# Test MCP server
+npm run test-mcp
 
-We welcome contributions! Please follow these steps:
+# Test specific modules
+npm run test-knowledge
+npm run test-all
+```
 
-1. **Fork the repository**
-2. **Create a feature branch:** `git checkout -b feature/amazing-feature`
-3. **Make your changes** with proper tests
-4. **Add tests** for new functionality
-5. **Update documentation** as needed
-6. **Submit a pull request** with detailed description
+## 🔧 Development
 
-### Development Guidelines
+```bash
+# Start MCP server in development mode
+npm run dev
 
-- Use TypeScript for all new code
-- Follow existing code style and patterns
-- Add comprehensive error handling
-- Include unit tests for new features
-- Update documentation for API changes
+# Build TypeScript
+npm run build
 
-### Adding New Modules
+# Clean build artifacts
+npm run clean
 
-To add a new module to the MCP Crypto Server:
+# Reset database (caution: deletes all data)
+npm run reset-db
+```
 
-1. **Create module directory** in `src/modules/your-module/`
+## 📚 Documentation
 
-2. **Implement the module class:**
-   ```typescript
-   import { BaseCryptoModule } from '../base/BaseCryptoModule.js';
-   
-   export class YourModule extends BaseCryptoModule {
-     name = 'your-module';
-     
-     protected setupTools() {
-       this.addTool({
-         name: 'your_tool_name',
-         description: 'Description of what your tool does',
-         inputSchema: {
-           type: 'object',
-           properties: {
-             // Define your input parameters here
-           },
-           required: ['required_param']
-         },
-         handler: this.handleYourTool.bind(this)
-       });
-     }
-     
-     private async handleYourTool(args: any) {
-       // Implement your tool logic here
-       return {
-         content: [
-           {
-             type: 'text',
-             text: 'Your tool response'
-           }
-         ]
-       };
-     }
-   }
-   ```
+- [MCP Setup Guide](MCP-SETUP-GUIDE.md) - Detailed client setup instructions
+- [API Documentation](api_docs/) - Complete tool reference
+- [Module Development](src/modules/README.md) - Adding new modules
 
-3. **Create database schema** (if needed) in `scripts/schema.sql`
+## 🤝 Contributing
 
-4. **Add tests** in `test/test-your-module.ts`:
-   ```typescript
-   import { YourModule } from '../src/modules/your-module/YourModule.js';
-   
-   async function testYourModule() {
-     const module = new YourModule();
-     await module.initialize();
-     
-     // Add your tests here
-     console.log('✅ YourModule tests passed');
-   }
-   
-   testYourModule().catch(console.error);
-   ```
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md).
 
-5. **Register the module** in `src/index.ts`:
-   ```typescript
-   import { YourModule } from './modules/your-module/YourModule.js';
-   
-   // Add to the modules array
-   const modules = [
-     // ... existing modules
-     new YourModule(),
-   ];
-   ```
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Make your changes with proper tests
+4. Update documentation as needed
+5. Submit a pull request
 
-6. **Update documentation** - add your module to this README and create specific docs if needed
-
-### Module Architecture
-
-All modules extend `BaseCryptoModule` which provides:
-- Database connection management
-- Tool registration system
-- Error handling and logging
-- Consistent API patterns
-
-Key principles:
-- Each module should be self-contained
-- Database schemas are auto-created on initialization
-- Tools should follow the MCP protocol specification
-- Include comprehensive error handling
-- Add proper TypeScript types
-
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🆘 Support
+
+- **Documentation**: Check the guides in this repository
+- **Issues**: Report bugs on GitHub Issues
+- **Logs**: Check the `logs/` directory for troubleshooting
+- **Community**: Join our [Telegram Community](https://t.me/+f6szsd7zYqdlZDIy)
+
+---
+
+*Built for the MCP ecosystem - connecting AI clients to comprehensive crypto intelligence.*

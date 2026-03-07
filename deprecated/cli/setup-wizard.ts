@@ -1,5 +1,5 @@
 /**
- * Ysalis First-Run Setup Wizard
+ * Big John First-Run Setup Wizard
  * Guides user through AI model, exchange, API keys, and Telegram config
  */
 
@@ -13,19 +13,17 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 const SETUP_DONE_FILE = path.join(CONFIG_DIR, 'setup-done');
 const ENV_FILE = path.join(process.cwd(), '.env');
 
-export interface YsalisConfig {
+export interface BigJohnConfig {
   aiModel: string;
   preferredExchange: 'binance' | 'bybit' | 'both';
   marketType: 'spot' | 'futures' | 'both';
-  dryRunDefault: boolean;
   setupComplete: boolean;
 }
 
-const DEFAULT_CONFIG: YsalisConfig = {
+const DEFAULT_CONFIG: BigJohnConfig = {
   aiModel: 'claude-3-5-sonnet-20241022',
   preferredExchange: 'both',
   marketType: 'both',
-  dryRunDefault: true,
   setupComplete: false,
 };
 
@@ -39,7 +37,7 @@ export function isSetupComplete(): boolean {
   }
 }
 
-export function loadConfig(): YsalisConfig | null {
+export function loadConfig(): BigJohnConfig | null {
   try {
     if (fs.existsSync(CONFIG_FILE)) {
       const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
@@ -49,7 +47,7 @@ export function loadConfig(): YsalisConfig | null {
   return null;
 }
 
-export function saveConfig(config: Partial<YsalisConfig>): void {
+export function saveConfig(config: Partial<BigJohnConfig>): void {
   const dir = path.dirname(CONFIG_FILE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const current = loadConfig() || DEFAULT_CONFIG;
@@ -94,7 +92,7 @@ function prompt(rl: readline.Interface, question: string, defaultValue?: string)
   });
 }
 
-export async function runSetupWizard(force = false): Promise<YsalisConfig> {
+export async function runSetupWizard(force = false): Promise<BigJohnConfig> {
   if (!force && isSetupComplete()) {
     return loadConfig() || DEFAULT_CONFIG;
   }
@@ -106,18 +104,18 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
 
   console.log(`
 ┌─────────────────────────────────────────────────────────────┐
-│         Ysalis Setup Wizard – First-Run Configuration        │
+│         Big John Setup Wizard – First-Run Configuration     │
 │                                                             │
 │  You can type "skip" for any step to leave it unset.         │
 │  You can always change these later in .env or via /set       │
 └─────────────────────────────────────────────────────────────┘
 `);
 
-  const config: YsalisConfig = loadConfig() || { ...DEFAULT_CONFIG };
+  const config: BigJohnConfig = loadConfig() || { ...DEFAULT_CONFIG };
 
   // 1. AI Model (Claude only for now)
   console.log('\n📌 Step 1: AI Model');
-  console.log('   Ysalis uses Claude for natural language conversations and strategy parsing.\n');
+  console.log('   Big John uses Claude for natural language conversations and strategy parsing.\n');
   
   const availableModels = ClaudeClient.getAvailableModels();
   availableModels.forEach((model, index) => {
@@ -127,7 +125,8 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
   
   const modelChoice = await prompt(rl, `\n   Select model (1-${availableModels.length})`, '1');
   const selectedIndex = parseInt(modelChoice) - 1;
-  config.aiModel = availableModels[selectedIndex]?.id || availableModels[0].id;
+  const selectedModel = availableModels[selectedIndex] || availableModels[0];
+  config.aiModel = selectedModel.id;
 
   console.log('\n   Claude requires an API key for AI features.');
   console.log('   Get your API key from: https://console.anthropic.com/');
@@ -165,16 +164,11 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
   };
   config.marketType = marketMap[marketChoice] || 'both';
 
-  // 4. Default dry-run
-  console.log('\n📌 Step 4: Default Mode');
-  console.log('   Dry-run = no real orders until you disable it (safer).\n');
-  const dryChoice = await prompt(rl, '   Start with dry-run? (y/n)', 'y');
-  config.dryRunDefault = dryChoice.toLowerCase() !== 'n' && dryChoice.toLowerCase() !== 'no';
-
-  // 5–8. Exchange API Keys
+  // 4–7. Exchange API Keys
   if (config.preferredExchange === 'binance' || config.preferredExchange === 'both') {
-    console.log('\n📌 Step 5–6: Binance API Keys');
-    console.log('   Get keys from: https://www.binance.com/en/my/settings/api-management\n');
+    console.log('\n📌 Step 4–5: Binance API Keys');
+    console.log('   Get keys from: https://www.binance.com/en/my/settings/api-management');
+    console.log('   ⚠️  Use testnet for testing: https://testnet.binance.vision/\n');
     const bk = await prompt(rl, '   Binance API Key');
     if (bk) {
       const bs = await prompt(rl, '   Binance Secret Key');
@@ -187,8 +181,9 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
   }
 
   if (config.preferredExchange === 'bybit' || config.preferredExchange === 'both') {
-    console.log('\n📌 Step 7–8: Bybit API Keys');
-    console.log('   Get keys from: https://www.bybit.com/app/user/api-management\n');
+    console.log('\n📌 Step 6–7: Bybit API Keys');
+    console.log('   Get keys from: https://www.bybit.com/app/user/api-management');
+    console.log('   ⚠️  Use testnet for testing: https://testnet.bybit.com/\n');
     const yk = await prompt(rl, '   Bybit API Key');
     if (yk) {
       const ys = await prompt(rl, '   Bybit Secret Key');
@@ -200,8 +195,8 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
     }
   }
 
-  // 9. Telegram
-  console.log('\n📌 Step 9: Telegram (Optional)');
+  // 8. Telegram
+  console.log('\n📌 Step 8: Telegram (Optional)');
   console.log('   For: channel monitoring, message-trigger strategies, sentiment.\n');
   console.log('   To get a session string, run: npx tsx utils/telegram-auth.ts');
   console.log('   Then paste the session string below, or skip.\n');
@@ -215,8 +210,8 @@ export async function runSetupWizard(force = false): Promise<YsalisConfig> {
     if (apiHash) setEnvVar('TELEGRAM_API_HASH', apiHash);
   }
 
-  // 10. Optional APIs
-  console.log('\n📌 Step 10: Optional APIs (skip all to continue)');
+  // 9. Optional APIs
+  console.log('\n📌 Step 9: Optional APIs (skip all to continue)');
   console.log('   Coinalyze (OI/liquidations), Earnings Feed, Crypto News, etc.\n');
   const coinalyze = await prompt(rl, '   Coinalyze API Key');
   if (coinalyze) setEnvVar('COINALYZE_API_KEY', coinalyze);

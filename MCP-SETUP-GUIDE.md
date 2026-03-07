@@ -1,223 +1,228 @@
-# MCP Configuration Setup Guide
+# MCP Crypto Server Setup Guide
 
-This guide helps you connect the MCP Crypto Server to various AI clients that support the Model Context Protocol (MCP).
+> Complete setup instructions for connecting the MCP Crypto Server to your AI client
 
-## LAUNCH: Quick Setup
+## 🚀 Quick Setup
 
-1. **Install the MCP Crypto Server** (if not already done):
-   ```bash
-   ./install.sh
-   ```
+### 1. Install the MCP Server
 
-2. **Build the server**:
-   ```bash
-   npm run build
-   ```
-
-3. **Choose your AI client** and follow the specific setup instructions below.
-
-## SETUP: Client-Specific Setup
-
-### Cursor IDE (with Cline/Claude)
-
-**Location**: Copy `mcp-config-cursor.json` to your Cline MCP settings:
-
-- **Windows**: `%APPDATA%\Cursor\User\globalStorage\rooveterinaryinc.roo-cline\settings\cline_mcp_settings.json`
-- **macOS**: `~/Library/Application Support/Cursor/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
-- **Linux**: `~/.config/Cursor/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
-
-**Steps**:
-1. Update the path in the config file to match your installation
-2. Restart Cursor
-3. Open a Cline conversation - crypto tools will be available
-
-### Claude Desktop
-
-**Location**: Update your Claude Desktop config file:
-
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Linux**: `~/.config/claude/claude_desktop_config.json`
-
-**Steps**:
-1. Use content from `mcp-config-claude-desktop.json`
-2. Update the path to match your installation
-3. Restart Claude Desktop
-4. Tools will be automatically available in new conversations
-
-### ChatGPT Desktop (Experimental)
-
-**Note**: MCP support in ChatGPT Desktop is experimental and may not be available in all versions.
-
-**Alternative**: Use the HTTP API mode:
 ```bash
-npm run backend  # Starts server on http://localhost:3000
+git clone <repository-url>
+cd mcp-crypto-server
+chmod +x install.sh
+./install.sh
 ```
 
-### Other MCP Clients
+The install script will:
+- Install Node.js dependencies
+- Set up PostgreSQL database
+- Configure environment variables
+- Test the MCP server connection
 
-Use `mcp-config-generic.json` as a template and adapt for your specific client.
+### 2. Configure Your MCP Client
 
-##  Configuration Options
+Choose your preferred AI client and follow the setup instructions:
 
-### Server Modes
+## 📱 Cursor IDE Setup
 
-1. **Standard MCP Mode** (recommended):
-   ```bash
-   npm start  # or node dist/mcp-server-socket.js
-   ```
+1. Open Cursor IDE
+2. Press `Cmd/Ctrl + Shift + P` to open command palette
+3. Type "Preferences: Open User Settings (JSON)"
+4. Add the MCP server configuration:
 
-2. **HTTP API Mode** (for non-MCP clients):
-   ```bash
-   npm run backend  # Starts on port 3000
-   ```
+```json
+{
+  "mcp.servers": {
+    "crypto": {
+      "command": "tsx",
+      "args": ["/absolute/path/to/mcp-crypto-server/mcp-server-socket.ts"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Important**: Replace `/absolute/path/to/mcp-crypto-server/` with the actual path to your installation.
+
+### Cursor IDE Tips:
+- The server will automatically start when you use crypto-related queries
+- Use natural language like "What's the current Bitcoin price?"
+- Tools are available through the AI chat interface
+
+## 🖥️ Claude Desktop Setup
+
+1. Locate your Claude Desktop config file:
+   - **macOS**: `~/.claude/claude_desktop_config.json`
+   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+2. Create or edit the file with:
+
+```json
+{
+  "mcpServers": {
+    "crypto": {
+      "command": "tsx",
+      "args": ["/absolute/path/to/mcp-crypto-server/mcp-server-socket.ts"]
+    }
+  }
+}
+```
+
+3. Restart Claude Desktop
+
+### Claude Desktop Tips:
+- Look for the 🔌 icon indicating MCP servers are connected
+- The crypto server will show as "crypto" in the server list
+- All 106 tools are available through natural language queries
+
+## 🛠️ Other MCP Clients
+
+The server uses standard MCP stdio transport and works with any compatible client:
+
+**Command**: `tsx mcp-server-socket.ts`  
+**Working Directory**: Your mcp-crypto-server installation path  
+**Transport**: stdio
+
+### Example for custom clients:
+```javascript
+const serverProcess = spawn('tsx', ['mcp-server-socket.ts'], {
+  cwd: '/path/to/mcp-crypto-server',
+  stdio: ['pipe', 'pipe', 'pipe']
+});
+```
+
+## 🔧 Configuration
 
 ### Environment Variables
 
-Add these to your MCP config's `env` section:
-
-```json
-{
-  "env": {
-    "NODE_ENV": "production",
-    "LOG_LEVEL": "info",
-    "MAX_CONCURRENT_REQUESTS": "10",
-    "REQUEST_TIMEOUT": "30000"
-  }
-}
-```
-
-## SEARCH: Available Tools
-
-Once connected, you'll have access to 50+ tools across these categories:
-
-### Market Data & Analysis
-- `get_comprehensive_quotes` - Multi-exchange price comparison
-- `analysis_comprehensive` - Technical analysis with indicators
-- `liquidations_comprehensive_analysis` - Liquidation tracking and alerts
-
-### DeFi Intelligence  
-- `aave_get_all_rates_and_history` - Lending/borrowing rates
-- `aave_get_yield_market_and_risk` - Yield opportunities with risk analysis
-- `defillama_discover_protocols` - DeFi protocol discovery
-
-### Social Intelligence
-- `sentiment_get_sentiment_messages` - Social media sentiment analysis
-- `sentiment_semantic_search` - AI-powered social search
-- `telegram_search_messages` - Telegram channel monitoring
-
-### Options & Derivatives
-- `deribit_get_option_chain` - Options data with Greeks
-- `deribit_analyze_iv` - Implied volatility analysis
-- `deribit_calculate_price_probabilities` - Price probability modeling
-
-### News & Research
-- `news_get_latest` - Multi-source crypto news
-- `news_search` - Semantic news search
-- `knowledge_search` - Search your personal research files
-
-### AI Forecasting
-- `forecast_comprehensive` - Multi-model price predictions
-- `analysis_comprehensive` - Technical analysis with ML insights
-
-## INFO: Usage Examples
-
-Once configured, you can ask questions like:
-
-**Market Analysis**:
-- "What's the current sentiment around Ethereum staking?"
-- "Show me arbitrage opportunities between exchanges"
-- "Analyze Bitcoin's technical indicators and provide a forecast"
-
-**DeFi Research**:
-- "Find high-yield opportunities on Aave with low risk"
-- "Compare lending rates across different protocols"
-- "What are the liquidation risks at current market levels?"
-
-**Social Intelligence**:
-- "What's trending in crypto Telegram channels today?"
-- "Search for discussions about 'Layer 2' in the last week"
-- "Analyze cross-platform sentiment for Bitcoin"
-
-**Personal Research**:
-- "Search my knowledge base for MEV strategies"
-- "Find information about yield farming in my research files"
-
-## SETUP: Troubleshooting
-
-### Common Issues
-
-**Tools not appearing**:
-1. Check that the server builds without errors: `npm run build`
-2. Verify database connection: `npm run test-connection`
-3. Check client logs for MCP connection errors
-4. Ensure the path in config matches your installation
-
-**Server won't start**:
-1. Check your `.env` file configuration
-2. Ensure PostgreSQL is running: `pg_isready`
-3. Verify Node.js version: `node --version` (requires 18+)
-
-**Database errors**:
-1. Run database setup: `npm run setup-db`
-2. Test connection: `npm run test-connection`
-3. Check PostgreSQL logs for connection issues
-
-### Debug Mode
-
-Enable detailed logging by setting environment variables:
-
-```json
-{
-  "env": {
-    "NODE_ENV": "development",
-    "LOG_LEVEL": "debug",
-    "VERBOSE_LOGGING": "true"
-  }
-}
-```
-
-### Manual Testing
-
-Test the server independently:
+The server works out-of-the-box, but you can enhance functionality with API keys:
 
 ```bash
-# Test MCP server
-npm start
+# Database (auto-configured by install script)
+DATABASE_URL=postgresql://user:pass@localhost/crypto_db
 
-# Test HTTP API mode  
-npm run backend
+# Optional: Exchange APIs for enhanced data
+BINANCE_API_KEY=your_binance_key
+BINANCE_SECRET_KEY=your_binance_secret
+BYBIT_API_KEY=your_bybit_key
+BYBIT_SECRET_KEY=your_bybit_secret
 
-# Test specific functionality
-npm run test-connection
-npm run test-knowledge
+# Optional: Data provider APIs
+COINALYZE_API_KEY=your_coinalyze_key
+EARNINGSFEED_API_KEY=your_earningsfeed_key
+MASSIVE_API_KEY=your_polygon_key
+
+# Optional: AI APIs for enhanced features
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_claude_key
 ```
 
-## LOCK: Security Notes
+### Setting API Keys via MCP
 
-- **Local Operation**: The server runs entirely on your machine - no data is sent to external services
-- **API Keys**: Optional API keys enhance functionality but aren't required for basic operation
-- **Database**: Uses local PostgreSQL - ensure proper access controls
-- **Telegram**: Session files (`.session`) are sensitive - keep them private and secure
-- **Environment**: Never commit `.env` or `.session` files to version control
+You can also set API keys through the MCP interface:
 
-## 📚 Additional Resources
+```
+"Set my Binance API key to abc123"
+"Configure my OpenAI API key"
+"List all configurable API keys"
+```
 
-- **Main Documentation**: See `README.md` for comprehensive setup and usage
-- **API Documentation**: Check `api_docs/` for detailed tool specifications  
-- **Troubleshooting**: Refer to README.md troubleshooting section
-- **Community**: Join discussions for tips and best practices
+## 🧪 Testing Your Setup
 
-## 🆘 Getting Help
+### Test the MCP Connection
+```bash
+cd mcp-crypto-server
+npm run test-mcp
+```
 
-If you encounter issues:
+This should show:
+- ✅ Connected successfully
+- ✅ Found 106 available tools
+- ✅ Tool call successful
 
-1. Check the troubleshooting section above
-2. Review logs in the `logs/` directory
-3. Test individual components with the provided test scripts
-4. Consult the main README.md for detailed documentation
-5. Report issues with full error logs and system information
+### Test Individual Tools
+```bash
+# List all available tools
+npm run list-tools
+
+# Test database connection
+npm run test-connection
+
+# Run comprehensive tests
+npm run test-all
+```
+
+## 🎯 First Queries to Try
+
+Once connected, try these queries with your MCP client:
+
+**Basic Market Data:**
+- "What's the current Bitcoin price?"
+- "Show me the top 10 cryptocurrencies by market cap"
+- "Get ETH price history for the last week"
+
+**DeFi Intelligence:**
+- "What are the best yield farming opportunities on Aave?"
+- "Show me TVL data for major DeFi protocols"
+- "Find high-liquidity trading pairs on DEXs"
+
+**Social Sentiment:**
+- "What's the sentiment around Bitcoin today?"
+- "Summarize recent crypto discussions on Reddit"
+- "Find trending prediction markets on Polymarket"
+
+**Research:**
+- "Search for recent news about Ethereum upgrades"
+- "Find information about upcoming token unlocks"
+- "Get a comprehensive analysis of SOL price trends"
+
+## 🔍 Troubleshooting
+
+### Common Issues:
+
+**"Server not found" or connection errors:**
+- Verify the absolute path in your config
+- Ensure `tsx` is installed globally: `npm install -g tsx`
+- Check that the server starts manually: `npm run mcp-server`
+
+**"No tools available":**
+- Check database connection: `npm run test-connection`
+- Verify environment variables are set
+- Look at server logs for initialization errors
+
+**Tool execution errors:**
+- Some tools require API keys for full functionality
+- Check `.env` file configuration
+- Use `config_list_allowed_keys` to see what can be configured
+
+### Getting Help:
+
+1. **Check the logs**: Server logs show detailed error information
+2. **Test components**: Use individual test scripts to isolate issues
+3. **Verify setup**: Run `npm run test-mcp` to validate the connection
+4. **Community support**: Join our [Telegram Community](https://t.me/+f6szsd7zYqdlZDIy)
+
+## 📊 Server Status
+
+When the server starts successfully, you'll see:
+
+```
+🚀 Starting MCP Crypto Server...
+✅ MCP Crypto Server started successfully!
+🛠️  106 crypto tools are loaded and ready:
+   Market Data: 15 tools
+   DeFi: 20 tools
+   Social Intelligence: 15 tools
+   Technical Analysis: 12 tools
+   Trading: 8 tools
+   News & Research: 10 tools
+   Configuration: 6 tools
+   Other: 20 tools
+⏳ Ready for MCP client connections (Cursor, Claude Desktop, etc.)...
+```
+
+This indicates all modules loaded successfully and the server is ready for connections.
 
 ---
 
-**Ready to supercharge your crypto analysis?** Choose your AI client above and get started! LAUNCH:
+*Need help? Check our [main README](README.md) or join the community for support.*

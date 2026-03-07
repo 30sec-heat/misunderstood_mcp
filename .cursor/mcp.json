@@ -1,9 +1,14 @@
 {
   "mcpServers": {
-    "mcp-crypto-server": {
+    "crypto-tools": {
       "command": "npm",
-      "args": ["run", "mcp-socket"],
-      "cwd": "/home/MCPCrypto"
+      "args": ["run", "mcp-server"],
+      "cwd": "/home/MCPCrypto",
+      "env": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": false
     }
   }
 }

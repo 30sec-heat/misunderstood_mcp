@@ -1,0 +1,52 @@
+{
+  "_comment": "Enhanced MCP Configuration for Cursor IDE with all options",
+  "_description": "This is a comprehensive configuration template showing all available options",
+  
+  "mcpServers": {
+    "crypto-tools": {
+      "command": "npm",
+      "args": ["run", "mcp-server"],
+      "cwd": "/home/MCPCrypto",
+      "env": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info",
+        "MAX_CONCURRENT_REQUESTS": "10",
+        "REQUEST_TIMEOUT": "30000",
+        "VERBOSE_LOGGING": "false",
+        "DATABASE_POOL_SIZE": "10",
+        "ENABLE_CACHING": "true",
+        "CACHE_TTL": "300"
+      },
+      "disabled": false,
+      "timeout": 30000,
+      "restart": true,
+      "maxRestarts": 5
+    },
+    
+    "crypto-tools-debug": {
+      "_comment": "Debug version with enhanced logging",
+      "command": "npm",
+      "args": ["run", "mcp-server"],
+      "cwd": "/home/MCPCrypto",
+      "env": {
+        "NODE_ENV": "development",
+        "LOG_LEVEL": "debug",
+        "VERBOSE_LOGGING": "true",
+        "DEBUG": "mcp:*"
+      },
+      "disabled": true
+    },
+    
+    "crypto-tools-direct": {
+      "_comment": "Alternative using direct node execution",
+      "command": "node",
+      "args": ["dist/mcp-server-socket.js"],
+      "cwd": "/home/MCPCrypto",
+      "env": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": true
+    }
+  }
+}

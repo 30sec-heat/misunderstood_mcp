@@ -15,7 +15,7 @@ import { PolymarketModule } from './src/modules/polymarket/index.js';
 import { SentimentModule } from './src/modules/sentiment/index.js';
 import { NewsModule } from './src/modules/news/index.js';
 import { ChartModule } from './src/modules/chart/index.js';
-import { PythNetworkModule } from './src/modules/pyth/index.js';
+import { EconomicDataModule } from './src/modules/econ_data/index.js';
 import { PerformanceModule } from './src/modules/performance/index.js';
 import { AnalysisModule } from './src/modules/analysis/index.js';
 import { TelegramModule } from './src/modules/telegram/index.js';
@@ -58,6 +58,7 @@ class SocketMCPServer {
       {
         name: 'mcp-crypto-server',
         version: '1.0.0',
+        description: 'Professional MCP server providing comprehensive cryptocurrency intelligence, DeFi analytics, social sentiment analysis, and trading tools',
       },
       {
         capabilities: {
@@ -83,7 +84,7 @@ class SocketMCPServer {
       { name: 'sentiment', class: SentimentModule },
       { name: 'news', class: NewsModule },
       { name: 'chart', class: ChartModule },
-      { name: 'pyth', class: PythNetworkModule },
+      { name: 'econ_data', class: EconomicDataModule },
       { name: 'performance', class: PerformanceModule },
       { name: 'telegram', class: TelegramModule },
       { name: 'reddit', class: RedditModule },
@@ -241,29 +242,81 @@ class SocketMCPServer {
   }
 
   async start() {
-    console.log(' Starting Socket MCP Crypto Server...');
-    console.log(' Process ID:', process.pid);
-    console.log(' Node version:', process.version);
+    console.log('🚀 Starting MCP Crypto Server...');
+    console.log('📊 Process ID:', process.pid);
+    console.log('⚙️  Node version:', process.version);
+    console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
     
-    // Initialize all modules upfront
-    await this.initializeAllModules();
-    
-    console.log('📡 Starting stdio transport...');
-    const transport = new StdioServerTransport();
-    
-    // Add connection event logging
-    transport.onerror = (error) => {
-      console.error(' Transport error:', error);
+    try {
+      // Initialize all modules upfront
+      await this.initializeAllModules();
+      
+      console.log('📡 Starting stdio transport...');
+      const transport = new StdioServerTransport();
+      
+      // Enhanced error handling for transport
+      transport.onerror = (error) => {
+        console.error('❌ Transport error:', error);
+        console.error('   Error type:', error.constructor.name);
+        console.error('   Error message:', error.message);
+      };
+      
+      await this.server.connect(transport);
+      
+      console.log('✅ MCP Crypto Server started successfully!');
+      console.log('🔗 Server is ready to receive MCP requests via stdio');
+      console.log(`🛠️  ${this.allTools.length} crypto tools are loaded and ready:`);
+      
+      // Log available tool categories for better visibility
+      const toolsByCategory = this.categorizeTools();
+      Object.entries(toolsByCategory).forEach(([category, tools]) => {
+        console.log(`   ${category}: ${tools.length} tools`);
+      });
+      
+      console.log('⏳ Ready for MCP client connections (Cursor, Claude Desktop, etc.)...');
+      console.log('📖 Setup guide: https://github.com/your-repo/mcp-crypto-server#mcp-client-setup');
+      
+      this.setupGracefulShutdown();
+    } catch (error) {
+      console.error('❌ Failed to start MCP server:', error);
+      throw error;
+    }
+  }
+
+  private categorizeTools(): Record<string, any[]> {
+    const categories: Record<string, any[]> = {
+      'Market Data': [],
+      'DeFi': [],
+      'Social Intelligence': [],
+      'Technical Analysis': [],
+      'Trading': [],
+      'News & Research': [],
+      'Configuration': [],
+      'Other': []
     };
-    
-    await this.server.connect(transport);
-    
-    console.log(' Socket MCP Crypto Server started successfully!');
-    console.log(' Server is ready to receive MCP requests via stdio');
-    console.log(` All ${this.allTools.length} tools are pre-loaded and ready`);
-    console.log(' Waiting for MCP requests...');
-    
-    this.setupGracefulShutdown();
+
+    this.allTools.forEach(tool => {
+      const name = tool.name.toLowerCase();
+      if (name.includes('quote') || name.includes('price') || name.includes('ohlcv') || name.includes('pyth')) {
+        categories['Market Data'].push(tool);
+      } else if (name.includes('aave') || name.includes('defillama') || name.includes('dex')) {
+        categories['DeFi'].push(tool);
+      } else if (name.includes('telegram') || name.includes('reddit') || name.includes('sentiment') || name.includes('social')) {
+        categories['Social Intelligence'].push(tool);
+      } else if (name.includes('analysis') || name.includes('chart') || name.includes('technical') || name.includes('forecast')) {
+        categories['Technical Analysis'].push(tool);
+      } else if (name.includes('trading') || name.includes('order') || name.includes('liquidation') || name.includes('deribit')) {
+        categories['Trading'].push(tool);
+      } else if (name.includes('news') || name.includes('research') || name.includes('knowledge') || name.includes('breaking')) {
+        categories['News & Research'].push(tool);
+      } else if (name.includes('config')) {
+        categories['Configuration'].push(tool);
+      } else {
+        categories['Other'].push(tool);
+      }
+    });
+
+    return categories;
   }
 
   private setupGracefulShutdown() {
@@ -276,11 +329,11 @@ class SocketMCPServer {
             await module.cleanup();
           }
         } catch (error) {
-          console.error(`Error cleaning up module ${module.name}:`, error);
+          console.error(`❌ Error cleaning up module ${module.name}:`, error);
         }
       }
       
-      console.log(' Graceful shutdown completed');
+      console.log('✅ Graceful shutdown completed');
       process.exit(0);
     };
 

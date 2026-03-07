@@ -37,7 +37,9 @@ data/
 # Test outputs and results
 test-results/
 test-output/
+test/results/
 *.test-output.txt
+*test-results*.json
 coverage/
 .nyc_output/
 test/module-test-results/
@@ -135,11 +137,13 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
-cursor.deb
 .ysalis/
 strategies.json
-aave-test-output.txt
 *.test-output.txt
+mcp-config.json
+
+# Archive directory (keep in repo for reference)
+# archive/
 
 # Cache directories
 .cache/
