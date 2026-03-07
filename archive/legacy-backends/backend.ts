@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { CryptoModule } from './src/index.js';
+import { CryptoModule } from '../../src/mcp-server-core.js';
 
 // Import all modules
 import { PolymarketModule } from './src/modules/polymarket/index.js';

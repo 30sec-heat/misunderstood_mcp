@@ -19,7 +19,10 @@
     "validate-mcp": "node validate-mcp-config.js",
     "build": "tsc",
     "clean": "rm -rf dist",
-    "list-tools": "tsx utils/list-tools.ts"
+    "list-tools": "tsx utils/list-tools.ts",
+    "backend": "tsx api-server.ts",
+    "web": "tsx api-server.ts",
+    "web:dev": "tsx api-server.ts"
   },
   "keywords": [
     "mcp",
@@ -38,6 +41,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
     "@aave/client": "^0.7.0",
     "@modelcontextprotocol/sdk": "^0.5.0",
     "@pythnetwork/client": "^2.22.1",

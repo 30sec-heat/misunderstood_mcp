@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+/* Sniping.stream inspired theme - dark, trading-focused */
+@theme {
+  /* Dark backgrounds */
+  --color-dark: #0a0a0f;
+  --color-dark-elevated: #12121a;
+  --color-dark-surface: #16161f;
+  --color-dark-border: #1e1e2a;
+  --color-dark-muted: #2a2a36;
+  /* Accent colors */
+  --color-accent-cyan: #00d4aa;
+  --color-accent-emerald: #10b981;
+  --color-accent-positive: #22c55e;
+  --color-accent-negative: #ef4444;
+  --color-accent-warning: #f59e0b;
+  --color-accent-info: #3b82f6;
+  /* Font families */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  /* Border radius */
+  --radius-sharp: 4px;
+  --radius-card: 6px;
+}
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-dark);
+    color: #e2e8f0;
+  }
+}
+
+@layer components {
+  .card-base {
+    background-color: var(--color-dark-elevated);
+    border: 1px solid var(--color-dark-border);
+    border-radius: var(--radius-card);
+    padding: 1rem;
+  }
+  .data-mono {
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+  }
+  .text-positive {
+    color: var(--color-accent-positive);
+  }
+  .text-negative {
+    color: var(--color-accent-negative);
+  }
+}

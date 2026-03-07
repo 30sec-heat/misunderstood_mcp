@@ -62,6 +62,41 @@ The server uses stdio transport and is compatible with any MCP client. Use the c
 
 📖 **Detailed setup instructions**: See [MCP-SETUP-GUIDE.md](MCP-SETUP-GUIDE.md)
 
+## 🐳 Docker
+
+Run the full stack with Docker Compose:
+
+```bash
+# Start all services (MCP server, backend API, webapp, PostgreSQL)
+docker-compose up -d
+
+# Or build and run
+docker-compose up --build -d
+```
+
+**Services and ports:**
+| Service    | Port | Description                    |
+|-----------|------|--------------------------------|
+| mcp-server| 3001 | MCP HTTP/SSE (TRANSPORT=http)  |
+| backend   | 3000 | Express API (/api/tools, etc.) |
+| webapp    | 80   | React app (nginx)              |
+| postgres  | 5432| PostgreSQL database            |
+
+**Environment variables** (create `.env` or pass to docker-compose):
+- `TRANSPORT` - `stdio` (default) or `http` for MCP server
+- `MCP_HTTP_PORT` - Port for MCP HTTP mode (default: 3001)
+- `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DATABASE`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+
+**MCP server only** (stdio mode for Cursor/Claude Desktop):
+```bash
+docker run -it --rm -v $(pwd):/app -w /app node:20-alpine sh -c "npm install && npx tsx mcp-server-socket.ts"
+```
+
+**MCP server only** (HTTP mode):
+```bash
+docker run -d -p 3001:3001 -e TRANSPORT=http -e MCP_HTTP_PORT=3001 mcp-crypto-server
+```
+
 ## 🛠️ Core MCP Tools (106 Available)
 
 ### **Market Data & Pricing (15+ tools)**

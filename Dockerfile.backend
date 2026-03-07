@@ -1,0 +1,30 @@
+# Backend API Server (api-server.ts) - serves /api and webapp static
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install root deps
+COPY package.json package-lock.json* ./
+RUN npm ci 2>/dev/null || npm install
+
+# Build webapp
+COPY webapp/package.json webapp/package-lock.json* webapp/
+RUN cd webapp && npm ci 2>/dev/null || npm install
+
+COPY webapp/ ./webapp/
+RUN cd webapp && npm run build
+
+# Copy backend source
+COPY tsconfig.json ./
+COPY api-server.ts ./
+COPY src/ ./src/
+
+# Create data dir
+RUN mkdir -p data
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+EXPOSE 3000
+
+CMD ["npx", "tsx", "api-server.ts"]

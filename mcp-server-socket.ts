@@ -3,8 +3,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -241,41 +243,108 @@ class SocketMCPServer {
     });
   }
 
+  /** Apply handlers to any Server instance (for HTTP mode where each connection gets its own Server) */
+  private setupHandlersOn(srv: InstanceType<typeof Server>) {
+    srv.setRequestHandler(ListToolsRequestSchema, async () => {
+      if (!this.isInitialized) await this.initializeAllModules();
+      return {
+        tools: this.allTools.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        })),
+      };
+    });
+    srv.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params;
+      if (!this.isInitialized) await this.initializeAllModules();
+      const tool = this.allTools.find(t => t.name === name);
+      if (!tool) throw new Error(`Tool not found: ${name}`);
+      return await tool.handler(args);
+    });
+  }
+
   async start() {
+    const transportMode = (process.env.TRANSPORT || 'stdio').toLowerCase();
     console.log('🚀 Starting MCP Crypto Server...');
     console.log('📊 Process ID:', process.pid);
     console.log('⚙️  Node version:', process.version);
+    console.log('🔧 Transport:', transportMode);
     console.log('🔧 Environment:', process.env.NODE_ENV || 'development');
-    
+
     try {
-      // Initialize all modules upfront
       await this.initializeAllModules();
-      
+
+      if (transportMode === 'http') {
+        const port = parseInt(process.env.MCP_HTTP_PORT || '3001', 10);
+        const sessions = new Map<string, { transport: InstanceType<typeof SSEServerTransport>; server: InstanceType<typeof Server> }>();
+
+        const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+          const url = new URL(req.url || '/', `http://localhost`);
+          if (req.method === 'GET' && url.pathname === '/sse') {
+            const srv = new Server(
+              { name: 'mcp-crypto-server', version: '1.0.0', description: 'MCP Crypto Server' },
+              { capabilities: { tools: {} } }
+            );
+            this.setupHandlersOn(srv);
+            const transport = new SSEServerTransport('/message', res as any);
+            transport.onerror = (err) => console.error('SSE transport error:', err);
+            transport.onclose = () => sessions.delete(transport.sessionId);
+            await srv.connect(transport);
+            sessions.set(transport.sessionId, { transport, server: srv });
+          } else if (req.method === 'POST' && url.pathname === '/message') {
+            const sessionId = url.searchParams.get('sessionId');
+            if (!sessionId) {
+              res.writeHead(400).end('Missing sessionId');
+              return;
+            }
+            const entry = sessions.get(sessionId);
+            if (!entry) {
+              res.writeHead(404).end('Session not found');
+              return;
+            }
+            await entry.transport.handlePostMessage(req as any, res as any);
+          } else if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ status: 'ok', tools: this.allTools.length }));
+          } else {
+            res.writeHead(404).end('Not found');
+          }
+        });
+
+        httpServer.listen(port, '0.0.0.0', () => {
+          console.log(`✅ MCP HTTP server listening on http://0.0.0.0:${port}`);
+          console.log(`   GET /sse - MCP SSE endpoint`);
+          console.log(`   POST /message?sessionId=... - client messages`);
+          console.log(`   GET /health - health check`);
+          console.log(`🛠️  ${this.allTools.length} crypto tools loaded`);
+        });
+        this.setupGracefulShutdown();
+        return;
+      }
+
+      // Stdio mode (default)
       console.log('📡 Starting stdio transport...');
       const transport = new StdioServerTransport();
-      
-      // Enhanced error handling for transport
       transport.onerror = (error) => {
         console.error('❌ Transport error:', error);
         console.error('   Error type:', error.constructor.name);
         console.error('   Error message:', error.message);
       };
-      
       await this.server.connect(transport);
-      
+
       console.log('✅ MCP Crypto Server started successfully!');
       console.log('🔗 Server is ready to receive MCP requests via stdio');
       console.log(`🛠️  ${this.allTools.length} crypto tools are loaded and ready:`);
-      
-      // Log available tool categories for better visibility
+
       const toolsByCategory = this.categorizeTools();
       Object.entries(toolsByCategory).forEach(([category, tools]) => {
         console.log(`   ${category}: ${tools.length} tools`);
       });
-      
+
       console.log('⏳ Ready for MCP client connections (Cursor, Claude Desktop, etc.)...');
       console.log('📖 Setup guide: https://github.com/your-repo/mcp-crypto-server#mcp-client-setup');
-      
+
       this.setupGracefulShutdown();
     } catch (error) {
       console.error('❌ Failed to start MCP server:', error);

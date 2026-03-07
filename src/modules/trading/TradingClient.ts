@@ -104,6 +104,88 @@ export class TradingClient {
     return ex;
   }
 
+  /** Public endpoints - no API keys required */
+  private getPublicExchange(exchange: ExchangeId, marketType: MarketType): ccxt.Exchange {
+    const key = `public_${this.getExchangeKey(exchange, marketType)}`;
+    let ex = this.exchanges.get(key);
+    if (!ex) {
+      const opts: any = { enableRateLimit: true, timeout: 30000 };
+      if (exchange === 'binance') {
+        ex = new ccxt.binance({
+          ...opts,
+          options: marketType === 'futures' ? { defaultType: 'future' } : { defaultType: 'spot' },
+        }) as ccxt.Exchange;
+      } else if (exchange === 'bybit') {
+        ex = new ccxt.bybit({
+          ...opts,
+          options: marketType === 'futures' ? { defaultType: 'swap' } : { defaultType: 'spot' },
+        }) as ccxt.Exchange;
+      } else {
+        throw new Error(`Unsupported exchange: ${exchange}`);
+      }
+      this.exchanges.set(key, ex);
+    }
+    return ex;
+  }
+
+  async fetchTicker(
+    symbol: string,
+    marketType: MarketType,
+    exchange: ExchangeId
+  ): Promise<Record<string, unknown>> {
+    const ex = this.getPublicExchange(exchange, marketType);
+    const normalizedSymbol = this.normalizeSymbol(symbol, marketType);
+    const ticker = await ex.fetchTicker(normalizedSymbol);
+    return {
+      symbol: ticker.symbol,
+      last: ticker.last,
+      bid: ticker.bid,
+      ask: ticker.ask,
+      high: ticker.high,
+      low: ticker.low,
+      volume: ticker.baseVolume ?? ticker.quoteVolume,
+      change: ticker.change,
+      percentage: ticker.percentage,
+      timestamp: ticker.timestamp,
+    } as Record<string, unknown>;
+  }
+
+  async fetchOrderBook(
+    symbol: string,
+    marketType: MarketType,
+    exchange: ExchangeId,
+    limit = 20
+  ): Promise<Record<string, unknown>> {
+    const ex = this.getPublicExchange(exchange, marketType);
+    const normalizedSymbol = this.normalizeSymbol(symbol, marketType);
+    const ob = await ex.fetchOrderBook(normalizedSymbol, limit);
+    return {
+      symbol: ob.symbol,
+      bids: ob.bids?.slice(0, limit) ?? [],
+      asks: ob.asks?.slice(0, limit) ?? [],
+      timestamp: ob.timestamp,
+    } as Record<string, unknown>;
+  }
+
+  async fetchTrades(
+    symbol: string,
+    marketType: MarketType,
+    exchange: ExchangeId,
+    limit = 50
+  ): Promise<Record<string, unknown>[]> {
+    const ex = this.getPublicExchange(exchange, marketType);
+    const normalizedSymbol = this.normalizeSymbol(symbol, marketType);
+    const trades = await ex.fetchTrades(normalizedSymbol, undefined, limit);
+    return trades.map((t: any) => ({
+      id: t.id,
+      symbol: t.symbol,
+      side: t.side,
+      amount: t.amount,
+      price: t.price,
+      timestamp: t.timestamp,
+    }));
+  }
+
   async fetchBalance(exchange: ExchangeId, marketType: MarketType): Promise<BalanceResult> {
     const ex = this.getExchange(exchange, marketType);
     const balance = await ex.fetchBalance();

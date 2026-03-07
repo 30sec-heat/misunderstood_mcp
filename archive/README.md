@@ -1,6 +1,8 @@
-# Archived Files
+# Archived Files (DEPRECATED)
 
-This directory contains files that were part of the original chat agent functionality but are not needed for the core MCP server functionality.
+⚠️ **DEPRECATED** - These files are no longer maintained. Use the main MCP server (`mcp-server-socket.ts`) and web platform (`api-server.ts`) instead.
+
+This directory contains legacy chat-agent and legacy-backends that are not needed for the core MCP server functionality.
 
 ## Chat Agent Files (archive/chat-agent/)
 
