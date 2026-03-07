@@ -17,6 +17,7 @@ RUN cd webapp && npm run build
 # Copy backend source
 COPY tsconfig.json ./
 COPY api-server.ts ./
+COPY server/ ./server/
 COPY src/ ./src/
 
 # Create data dir

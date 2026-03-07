@@ -1,20 +1,17 @@
 import { useState, useEffect } from 'react';
-import { api } from '../api/client';
 import { DataTable } from '../components/shared/DataTable';
 import { Card } from '../components/shared/Card';
 import type { DataRecord } from '../types';
 
+// Modules supported by backend data proxy (server-side API keys from env)
 const MODULES = [
   'polymarket',
-  'sentiment',
   'news',
-  'chart',
-  'defillama',
-  'dexscreener',
-  'quote',
-  'deribit',
-  'liquidations',
-  'earnings',
+  'breaking_news',
+  'pyth',
+  'econ_data',
+  'earningsfeed',
+  'massive',
 ] as const;
 
 export function DataExplorerPage() {
@@ -26,23 +23,18 @@ export function DataExplorerPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    // Data explorer: use tool call for module data when available
-    api
-      .callTool(`get_${module}_data`, {})
-      .then((res: unknown) => {
-        const r = res as { content?: Array<{ text?: string }>; data?: DataRecord[] };
-        if (Array.isArray(r.data)) {
-          setData(r.data);
-        } else if (r.content?.[0]?.text) {
-          try {
-            const parsed = JSON.parse(r.content[0].text);
-            setData(Array.isArray(parsed) ? parsed : parsed?.data ?? []);
-          } catch {
-            setData([]);
-          }
-        } else {
-          setData([]);
-        }
+    const params = module === 'pyth' || module === 'econ_data' ? '?ids=0xca80ba6f32ebebb5f99f90aa194a3baaef83a7aaf15ff26539f308c2bfb41241' : '';
+    fetch(`/api/data/${module}${params}`)
+      .then((res) => res.json())
+      .then((r: { data?: unknown; error?: string }) => {
+        if (r.error) throw new Error(r.error);
+        const raw = r.data;
+        const arr = Array.isArray(raw)
+          ? raw
+          : raw && typeof raw === 'object' && Array.isArray((raw as { data?: unknown }).data)
+            ? (raw as { data: DataRecord[] }).data
+            : [];
+        setData(arr);
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : 'Failed to load');

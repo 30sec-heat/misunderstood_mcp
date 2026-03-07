@@ -5,6 +5,7 @@
  * - GET /api/tools - returns all MCP tools with enabled state
  * - POST /api/tools/:name/enable, POST /api/tools/:name/disable
  * - POST /api/tools/call - execute a tool (read-only tools only; trading execution is client-side)
+ * - GET /api/data/:module - data proxy (server-side API keys from env)
  * - POST /api/trading/relay - relay pre-signed requests to exchanges (server never stores keys)
  */
 
@@ -14,6 +15,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getToolRegistry } from './src/api/tool-registry.js';
+import { dataProxy } from './server/data-proxy.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = parseInt(process.env.PORT || '5174', 10);
@@ -81,6 +83,18 @@ app.post('/api/tools/call', async (req, res) => {
     res.status(500).json({
       error: err instanceof Error ? err.message : 'Unknown error',
     });
+  }
+});
+
+// --- API: Data proxy (server-side API keys from env; trading keys stay client-side) ---
+
+app.get('/api/data/:module', async (req, res) => {
+  try {
+    const { module: moduleName } = req.params;
+    const result = await dataProxy(moduleName, req.query as Record<string, string | string[] | undefined>);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 });
 
@@ -165,6 +179,7 @@ async function main() {
   app.listen(PORT, HOST, () => {
     console.log(` HTTP: http://${HOST}:${PORT}`);
     console.log(` API: GET /api/tools, POST /api/tools/:name/enable|disable, POST /api/tools/call`);
+    console.log(` Data: GET /api/data/:module (polymarket, news, pyth, etc.)`);
     console.log(` Trading relay: POST /api/trading/relay (client signs, server forwards)`);
     console.log(`\n Press Ctrl+C to stop\n`);
   });

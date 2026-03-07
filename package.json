@@ -9,6 +9,7 @@
     "start:mcp": "tsx mcp-server-socket.ts",
     "start:http": "tsx mcp-server-http.ts",
     "start:backend": "tsx server/index.ts",
+    "web": "tsx api-server.ts",
     "mcp-server": "tsx mcp-server-socket.ts",
     "dev": "tsx mcp-server-socket.ts",
     "setup": "./install.sh",

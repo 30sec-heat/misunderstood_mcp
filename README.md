@@ -97,6 +97,30 @@ docker run -it --rm -v $(pwd):/app -w /app node:20-alpine sh -c "npm install && 
 docker run -d -p 3001:3001 -e TRANSPORT=http -e MCP_HTTP_PORT=3001 mcp-crypto-server
 ```
 
+## 🌐 Web Platform (Mobile-First)
+
+A React-based web app for managing MCP tools, exploring data, and handling API keys client-side.
+
+**Run locally:**
+```bash
+# Terminal 1: Backend API (requires PostgreSQL)
+npm run web
+
+# Terminal 2: Frontend dev server (with hot reload)
+cd webapp && npm run dev
+```
+
+Open http://localhost:5173. The webapp proxies `/api` to the backend.
+
+**Features:**
+- **Agent** – Chat/agent interface
+- **Management** – Enable/disable MCP tools per session
+- **Data Explorer** – Browse polymarket, news, pyth, earnings, etc. (server-side API keys from env)
+- **Trading** – Place orders via relay (API keys stay in browser, never sent to server)
+- **Settings** – Keys Vault (localStorage only; trading keys never touch server)
+
+**Claude via HTTP:** Use `mcp-server-http.ts` or run MCP with `TRANSPORT=http`. See `mcp_config_examples/mcp-config-claude-http.json`.
+
 ## 🛠️ Core MCP Tools (106 Available)
 
 ### **Market Data & Pricing (15+ tools)**
