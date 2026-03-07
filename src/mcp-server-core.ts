@@ -15,12 +15,9 @@ import { NewsModule } from './modules/news/index.js';
 import { ChartModule } from './modules/chart/index.js';
 import { EconomicDataModule } from './modules/econ_data/index.js';
 import { PerformanceModule } from './modules/performance/index.js';
-import { AnalysisModule } from './modules/analysis/index.js';
 import { TelegramModule } from './modules/telegram/index.js';
 import { RedditModule } from './modules/reddit/index.js';
-import { AaveModule } from './modules/aave/index.js';
-import { DeFiLlamaModule } from './modules/defillama/index.js';
-import { DexScreenerModule } from './modules/dexscreener/index.js';
+// Aave, DeFiLlama, DexScreener, Analysis - excluded (missing data fetchers in repo)
 import { ForecastingModule } from './modules/forecasting/index.js';
 import { LiquidationModule } from './modules/liquidations/index.js';
 import { QuoteModule } from './modules/quote/index.js';
@@ -82,9 +79,8 @@ export function createMCPServerCore(): MCPServerCore {
       { name: 'performance', class: PerformanceModule },
       { name: 'telegram', class: TelegramModule },
       { name: 'reddit', class: RedditModule },
-      { name: 'aave', class: AaveModule },
-      { name: 'defillama', class: DeFiLlamaModule },
-      { name: 'dexscreener', class: DexScreenerModule },
+      // AaveModule, DeFiLlamaModule - disabled (missing data fetchers in repo)
+      // { name: 'dexscreener', class: DexScreenerModule }, // disabled - missing DexScreenerDataFetcher
       { name: 'quote', class: QuoteModule },
       { name: 'alpha', class: AlphaScannerModule },
       { name: 'deribit', class: DeribitModule },
@@ -124,14 +120,6 @@ export function createMCPServerCore(): MCPServerCore {
       console.error('[MCP] liquidations module init failed:', error);
     }
 
-    try {
-      const coinalyzeAPI = liquidationModule?.getCoinalyzeAPI?.() || undefined;
-      const analysisModule = new AnalysisModule(coinalyzeAPI);
-      modules.set('analysis', analysisModule);
-      allTools.push(...(analysisModule.tools || []));
-    } catch (error) {
-      console.error('[MCP] analysis module init failed:', error);
-    }
 
     try {
       const forecastingModule = new ForecastingModule();

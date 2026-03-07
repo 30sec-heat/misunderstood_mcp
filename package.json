@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "start": "tsx mcp-server-socket.ts",
+    "start:mcp": "tsx mcp-server-socket.ts",
+    "start:http": "tsx mcp-server-http.ts",
+    "start:backend": "tsx server/index.ts",
     "mcp-server": "tsx mcp-server-socket.ts",
     "dev": "tsx mcp-server-socket.ts",
     "setup": "./install.sh",
@@ -19,10 +22,7 @@
     "validate-mcp": "node validate-mcp-config.js",
     "build": "tsc",
     "clean": "rm -rf dist",
-    "list-tools": "tsx utils/list-tools.ts",
-    "backend": "tsx api-server.ts",
-    "web": "tsx api-server.ts",
-    "web:dev": "tsx api-server.ts"
+    "list-tools": "tsx utils/list-tools.ts"
   },
   "keywords": [
     "mcp",
@@ -64,6 +64,8 @@
     "openai": "^6.7.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.0.0",
     "@types/ws": "^8.5.0",
     "ts-node": "^10.9.0",
