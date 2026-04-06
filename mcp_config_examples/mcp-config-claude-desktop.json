@@ -1,0 +1,38 @@
+{
+  "//": "MCP Configuration for Claude Desktop",
+  "//": "====================================",
+  "//": "",
+  "//": "SETUP INSTRUCTIONS FOR CLAUDE DESKTOP:",
+  "//": "1. Locate your Claude Desktop config file:",
+  "//": "   - Windows: %APPDATA%\\Claude\\claude_desktop_config.json",
+  "//": "   - macOS: ~/Library/Application Support/Claude/claude_desktop_config.json", 
+  "//": "   - Linux: ~/.config/claude/claude_desktop_config.json",
+  "//": "",
+  "//": "2. If the file doesn't exist, create it with the content below",
+  "//": "3. If it exists, add the 'mcpServers' section to your existing config",
+  "//": "4. Update the 'command' path to match your project location",
+  "//": "5. Ensure the MCP Crypto Server is built: npm run build",
+  "//": "6. Restart Claude Desktop",
+  "//": "",
+  "//": "USAGE:",
+  "//": "- Start a new conversation in Claude Desktop",
+  "//": "- The crypto analysis tools will be automatically available",
+  "//": "- Ask questions like: 'What's the current sentiment around Bitcoin?'",
+  "//": "- Or: 'Show me high-yield DeFi opportunities with low risk'",
+  "//": "",
+  "//": "TROUBLESHOOTING:",
+  "//": "- If tools don't appear, check Claude Desktop logs",
+  "//": "- Ensure the server starts without errors: npm start",
+  "//": "- Verify database connection: npm run test-connection",
+  "//": "",
+
+  "mcpServers": {
+    "mcp-crypto-server": {
+      "command": "node",
+      "args": ["/path/to/your/MCPCrypto/dist/mcp-server-socket.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}

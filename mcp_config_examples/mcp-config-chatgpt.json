@@ -1,0 +1,41 @@
+{
+  "//": "MCP Configuration for ChatGPT Desktop (Experimental)",
+  "//": "===================================================",
+  "//": "",
+  "//": "SETUP INSTRUCTIONS FOR CHATGPT DESKTOP:",
+  "//": "Note: MCP support in ChatGPT Desktop is experimental and may require specific versions",
+  "//": "",
+  "//": "1. Ensure you have ChatGPT Desktop with MCP support",
+  "//": "2. Locate the ChatGPT config directory:",
+  "//": "   - Windows: %APPDATA%\\OpenAI\\ChatGPT\\config.json",
+  "//": "   - macOS: ~/Library/Application Support/OpenAI/ChatGPT/config.json",
+  "//": "   - Linux: ~/.config/openai/chatgpt/config.json",
+  "//": "",
+  "//": "3. Add or update the MCP servers section in your config",
+  "//": "4. Update the path below to match your installation",
+  "//": "5. Restart ChatGPT Desktop",
+  "//": "",
+  "//": "ALTERNATIVE SETUP (if direct MCP not supported):",
+  "//": "1. Start the MCP server manually: npm start",
+  "//": "2. Use the backend API mode: npm run backend", 
+  "//": "3. Connect via HTTP API at http://localhost:3000",
+  "//": "",
+  "//": "FEATURES AVAILABLE:",
+  "//": "- Real-time crypto market analysis",
+  "//": "- Social sentiment monitoring", 
+  "//": "- DeFi yield opportunity discovery",
+  "//": "- Options flow analysis",
+  "//": "- Personal knowledge base search",
+  "//": "",
+
+  "mcpServers": {
+    "mcp-crypto-server": {
+      "command": "node",
+      "args": ["/path/to/your/MCPCrypto/dist/mcp-server-socket.js"],
+      "env": {
+        "NODE_ENV": "production"
+      },
+      "transport": "stdio"
+    }
+  }
+}

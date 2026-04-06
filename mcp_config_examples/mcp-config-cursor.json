@@ -1,0 +1,29 @@
+{
+  "_comment": "MCP Configuration for Cursor IDE",
+  "_instructions": [
+    "SETUP INSTRUCTIONS FOR CURSOR:",
+    "1. Copy this configuration to your project's .cursor/mcp.json file",
+    "2. Update the 'cwd' path below to match your project location", 
+    "3. Ensure the MCP Crypto Server is installed (run ./install.sh)",
+    "4. Restart Cursor IDE",
+    "5. The crypto-tools server will be available in AI conversations",
+    "",
+    "SECURITY NOTE:",
+    "- Ensure your .env file is properly configured with database credentials",
+    "- The server runs locally and doesn't send data to external services",
+    "- Keep API keys secure in your .env file"
+  ],
+
+  "mcpServers": {
+    "crypto-tools": {
+      "command": "npm",
+      "args": ["run", "mcp-server"],
+      "cwd": "/path/to/your/MCPCrypto",
+      "env": {
+        "NODE_ENV": "production",
+        "LOG_LEVEL": "info"
+      },
+      "disabled": false
+    }
+  }
+}

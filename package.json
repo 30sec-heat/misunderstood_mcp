@@ -1,0 +1,31 @@
+{
+  "name": "misunderstood-mcp",
+  "version": "2.0.0",
+  "description": "Lightweight MCP server: Deribit options & IV tools (public API)",
+  "main": "mcp-server-socket.ts",
+  "type": "module",
+  "scripts": {
+    "start": "tsx mcp-server-socket.ts",
+    "mcp": "tsx mcp-server-socket.ts",
+    "mcp:http": "tsx mcp-server-http.ts",
+    "build": "tsc",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "test-mcp": "tsx test/test-mcp-connection.ts",
+    "test-mcp-tools": "tsx test/test-mcp-tool-calls.ts"
+  },
+  "keywords": ["mcp", "deribit", "options", "crypto"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "axios": "^1.6.0",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "//": "MCP Configuration for Claude - HTTP/SSE Transport",
+  "//": "====================================================",
+  "//": "",
+  "//": "Use this when the MCP server runs with HTTP transport (e.g. Docker, remote).",
+  "//": "The server exposes: GET /sse (SSE stream), POST /message?sessionId=... (client messages)",
+  "//": "",
+  "//": "OPTION 1 - Claude CLI:",
+  "//": "  claude mcp add --transport http crypto http://localhost:3001/sse",
+  "//": "",
+  "//": "OPTION 2 - Claude Desktop config (if it supports HTTP):",
+  "//": "  Add to mcpServers with url instead of command:",
+  "//": "",
+  "mcpServers": {
+    "crypto": {
+      "url": "http://localhost:3001/sse",
+      "//": "Or use transport http with full URL to your deployed MCP server"
+    }
+  }
+}

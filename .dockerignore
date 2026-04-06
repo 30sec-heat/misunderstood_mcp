@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs
+dist
+**/dist
+*.tsbuildinfo
+
+# Git
+.git
+.gitignore
+
+# IDE and editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs and temp
+logs
+*.log
+tmp
+temp
+.tmp
+
+# Test files
+test
+**/*.test.ts
+**/*.spec.ts
+**/__tests__
+coverage
+
+# Archive and deprecated (not needed in container)
+archive
+deprecated
+
+# Environment and secrets (use docker-compose env instead)
+.env
+.env.*
+!.env.example
+
+# Documentation (optional - exclude to reduce image size)
+*.md
+!README.md
+
+# Misc
+.DS_Store
+*.session
+knowledge/*
